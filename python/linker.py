@@ -14,6 +14,9 @@ def read_next_line(f):
 def parse_segments(f, num_segments, segments):
     for i in range(num_segments):
         line = read_next_line(f)
+        if line is None:
+            print(f"Unexpected end of file while reading segments", file=sys.stderr)
+            sys.exit(1)
         try:
             name, start_str, size_str, code_letter = line.split()
             start = int(start_str)
@@ -27,6 +30,9 @@ def parse_segments(f, num_segments, segments):
 def parse_symbols(f, num_symbols, symbols):
     for i in range(num_symbols):
         line = read_next_line(f)
+        if line is None:
+            print(f"Unexpected end of file while reading symbols", file=sys.stderr)
+            sys.exit(1)
         try:
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str)
@@ -35,6 +41,26 @@ def parse_symbols(f, num_symbols, symbols):
             print(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
+            sys.exit(1)
+
+def parse_relocations(f, num_relocations, relocations):
+    for i in range(num_relocations):
+        line = read_next_line(f)
+        if line is None:
+            print(f"Unexpected end of file while reading relocations", file=sys.stderr)
+            sys.exit(1)
+        try:
+            # Relocation entry may contain extra fields other than loc,seg,ref,type
+            fields = line.split()
+            loc_str, seg_number_str, ref_str, rel_type = fields[0:4]
+            extra_fields = fields[4:]
+            loc = int(loc_str)
+            seg_number = int(seg_number_str)
+            ref = int(ref_str)
+            relocations.append((loc, seg_number, ref, rel_type.decode(), extra_fields))
+            print(f"Relocation {i}: loc={loc}, seg_number={seg_number}, ref={ref}, rel_type={rel_type.decode()}, extra_fields={extra_fields}")
+        except ValueError:
+            print(f"Invalid relocation format on line: {line}", file=sys.stderr)
             sys.exit(1)
 
 def main():
@@ -84,7 +110,9 @@ def main():
         parse_symbols(infile, num_symbols, symbols)
         print(f"Symbols: {symbols}")
 
-        # TODO: Read relocations
+        # Read relocations
+        parse_relocations(infile, num_relocations, relocations)
+
         # TODO: Read data
 
     with open(input_file, 'rb') as infile, open(output_file, 'wb') as outfile:
