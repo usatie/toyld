@@ -1,0 +1,7 @@
+LINK
+3 2 0
+.text 0 1017 R
+.data 2000 320 RW
+.bss 2320 50 RW
+main 0 1 D
+wiggleroom 100 0 U
