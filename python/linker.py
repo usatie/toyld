@@ -24,6 +24,19 @@ def parse_segments(f, num_segments, segments):
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
 
+def parse_symbols(f, num_symbols, symbols):
+    for i in range(num_symbols):
+        line = read_next_line(f)
+        try:
+            name, value_str, seg_number_str, sym_type = line.split()
+            value = int(value_str)
+            seg_number = int(seg_number_str)
+            symbols.append((name.decode(), value, seg_number, sym_type.decode()))
+            print(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
+        except ValueError:
+            print(f"Invalid symbol format on line: {line}", file=sys.stderr)
+            sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -67,7 +80,10 @@ def main():
         parse_segments(infile, num_segments, segments)
         print(f"Segments: {segments}")
 
-        # TODO: Read symbols
+        # Read symbols
+        parse_symbols(infile, num_symbols, symbols)
+        print(f"Symbols: {symbols}")
+
         # TODO: Read relocations
         # TODO: Read data
 
