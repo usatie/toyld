@@ -24,13 +24,21 @@ def main():
     data = None
 
     with open(input_file, 'rb') as infile, open(output_file, 'wb') as outfile:
-        # Iterate through the lines in the input file and print them to the output file
-        # TODO: Check magic number
+        # Check magic number: 'LINK'
         line = infile.readline()
         if line != b'LINK\n':
             print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
             sys.exit(1)
-        # TODO: Read header and populate num_segments, num_symbols, num_relocations
+
+        # Read header: 'nsegs nsyms nrels'
+        line = infile.readline()
+        try:
+            num_segments, num_symbols, num_relocations = map(int, line.split())
+            print(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+        except ValueError:
+            print("Invalid header format: expected three integers", file=sys.stderr)
+            sys.exit(1)
+
         # TODO: Read segments
         # TODO: Read symbols
         # TODO: Read relocations
