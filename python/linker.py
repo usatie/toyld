@@ -63,6 +63,21 @@ def parse_relocations(f, num_relocations, relocations):
             print(f"Invalid relocation format on line: {line}", file=sys.stderr)
             sys.exit(1)
 
+def parse_data(f):
+    line = read_next_line(f)
+    # The line is a hex string representing the data section, so we need to convert it to bytes
+    if line is None:
+        print(f"Unexpected end of file while reading data section", file=sys.stderr)
+        sys.exit(1)
+    try:
+        data = bytes.fromhex(line.decode())
+        print(f"Data section length: {len(data)} bytes")
+        print(f"Data section (hex): {data.hex()}")
+        return data
+    except ValueError:
+        print(f"Invalid data format: expected hex string, got: {line}", file=sys.stderr)
+        sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -113,7 +128,8 @@ def main():
         # Read relocations
         parse_relocations(infile, num_relocations, relocations)
 
-        # TODO: Read data
+        # Read data
+        data = parse_data(infile)
 
     with open(input_file, 'rb') as infile, open(output_file, 'wb') as outfile:
         outfile.write(infile.read())
