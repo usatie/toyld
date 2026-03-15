@@ -53,7 +53,7 @@ def parse_relocations(f, num_relocations, relocations):
             # Relocation entry may contain extra fields other than loc,seg,ref,type
             fields = line.split()
             loc_str, seg_number_str, ref_str, rel_type = fields[0:4]
-            extra_fields = fields[4:]
+            extra_fields = map(lambda x: x.decode(), fields[4:])  # decode any extra fields as well
             loc = int(loc_str)
             seg_number = int(seg_number_str)
             ref = int(ref_str)
@@ -131,8 +131,18 @@ def main():
         # Read data
         data = parse_data(infile)
 
-    with open(input_file, 'rb') as infile, open(output_file, 'wb') as outfile:
-        outfile.write(infile.read())
+        # Write the output file
+        outfile.write(b'LINK\n')
+        outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
+        for name, start, size, code_letter in segments:
+            outfile.write(f"{name} {start} {size} {code_letter}\n".encode())
+        for name, value, seg_number, sym_type in symbols:
+            outfile.write(f"{name} {value} {seg_number} {sym_type}\n".encode())
+        for loc, seg_number, ref, rel_type, extra_fields in relocations:
+            extra_str = ' '.join(extra_fields)
+            outfile.write(f"{loc} {seg_number} {ref} {rel_type} {extra_str}\n".encode())
+        outfile.write(data.hex().encode())
+        outfile.write(b'\n') # newline to indicate the end of the data section
 
 if __name__ == '__main__':
     main()
