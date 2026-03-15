@@ -11,6 +11,19 @@ def read_next_line(f):
         if line and not line.startswith(b'#'):
             return line
 
+def parse_segments(f, num_segments, segments):
+    for i in range(num_segments):
+        line = read_next_line(f)
+        try:
+            name, start_str, size_str, code_letter = line.split()
+            start = int(start_str)
+            size = int(size_str)
+            segments.append((name.decode(), start, size, code_letter.decode()))
+            print(f"Segment {i}: name={name.decode()}, start={start}, size={size}, code_letter={code_letter.decode()}")
+        except ValueError:
+            print(f"Invalid segment format on line: {line}", file=sys.stderr)
+            sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -50,7 +63,10 @@ def main():
             print("Invalid header format: expected three integers", file=sys.stderr)
             sys.exit(1)
 
-        # TODO: Read segments
+        # Read segments
+        parse_segments(infile, num_segments, segments)
+        print(f"Segments: {segments}")
+
         # TODO: Read symbols
         # TODO: Read relocations
         # TODO: Read data
