@@ -1,5 +1,5 @@
 LINK
-3 2 0
+3 2 2
 # segments: name base length flags
 # this uses the common convention that text starts at zero,
 # data starts on the next page after text, bss starts at the
@@ -12,3 +12,6 @@ LINK
 # symbols
 main 0 1 D
 wiggleroom 100 0 U
+# relocations
+120 1 0 A4
+200 1 1 P4 extra fields
