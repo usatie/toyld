@@ -106,7 +106,8 @@ def parse_symbols(f, num_symbols):
             sys.exit(1)
     return symbols
 
-def parse_relocations(f, num_relocations, relocations):
+def parse_relocations(f, num_relocations):
+    relocations = []
     for i in range(num_relocations):
         line = read_next_line(f)
         if line is None:
@@ -126,6 +127,7 @@ def parse_relocations(f, num_relocations, relocations):
         except ValueError:
             print(f"Invalid relocation format on line: {line}", file=sys.stderr)
             sys.exit(1)
+    return relocations
 
 def parse_data(f):
     line = read_next_line(f)
@@ -173,8 +175,6 @@ def main():
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    relocations = []
-    data = []
     objs = []
     for input_file in input_files:
         # Simply copy the input file to the output file
@@ -209,12 +209,11 @@ def main():
 
             # Read relocations
             if not SKIP_RELOCATIONS:
-                parse_relocations(infile, num_relocations, relocations)
+                obj.relocations = parse_relocations(infile, num_relocations)
 
             # Read data
             if not SKIP_DATA:
-                data_in_file = parse_data(infile)
-                data.append((data_in_file, input_file))
+                obj.data = parse_data(infile)
         objs.append(obj)
 
     commons = {}
@@ -303,11 +302,12 @@ def main():
                 for sym in o.symbols:
                     outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
         if not SKIP_RELOCATIONS:
-            for rel in relocations:
-                extra_str = ' '.join(rel.extra_fields)
-                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
-        if not SKIP_DATA and data:
-            combined_data = b''.join(d for d, filename in data)  # combine data from all input files
+            for o in objs:
+                for rel in o.relocations:
+                    extra_str = ' '.join(rel.extra_fields)
+                    outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
+        if not SKIP_DATA:
+            combined_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
             outfile.write(combined_data.hex().encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
 
