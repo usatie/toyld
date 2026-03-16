@@ -1,8 +1,8 @@
 LINK
 3 2 0
 # segments: name base length flags
-.text 0    1390 R
-.data 2000 1213  RW
+.text 0    1390 RP
+.data 2000 1213  RWP
 .bss  3214 1400  RW
 # symbols
 mug 0 1 D

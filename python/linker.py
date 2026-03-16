@@ -211,10 +211,13 @@ def main():
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(input_files) > 1:
-        text_start = 0x1000 # start text segment at 0x1000 to leave some space for the header
-        text_size = 0
-        data_size = 0
-        bss_size = 0
+        # start text segment at 0x1000 to leave some space for the header
+        TEXT_START = 0x1000
+        segment_groups = {
+                'RP': {'.text': Segment('.text', 0, 0, 'RP')}, # read-only and present, code
+                'RWP': {'.data': Segment('.data', 0, 0, 'RWP')}, # read-write and present, data
+                'RW': {'.bss': Segment('.bss', 0, 0, 'RW')} # read-write and not present, uninitialized data
+        }
         WORD_ALIGNMENT = 0x0004
         PAGE_ALIGNMENT = 0x1000
 
@@ -222,37 +225,44 @@ def main():
             return (size + alignment - 1) // alignment * alignment
 
         for seg in segments:
-            if seg.name == '.text':
-                seg.assigned_address = text_size
-                text_size += roundup(seg.size, WORD_ALIGNMENT)
-            elif seg.name == '.data': 
-                seg.assigned_address = data_size
-                data_size += roundup(seg.size, WORD_ALIGNMENT)
-            elif seg.name == '.bss':
-                seg.assigned_address = bss_size
-                bss_size += roundup(seg.size, WORD_ALIGNMENT)
+            if seg.code_letter not in segment_groups:
+                print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
+                sys.exit(1)
+            if seg.name not in segment_groups[seg.code_letter]:
+                segment_groups[seg.code_letter][seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
+            seg.assigned_address = segment_groups[seg.code_letter][seg.name].size # Assign offset in the merged segment for now
+            segment_groups[seg.code_letter][seg.name].size += roundup(seg.size, WORD_ALIGNMENT)
 
-        data_start = roundup(text_start + text_size, PAGE_ALIGNMENT)
-        bss_start = roundup(data_start + data_size, WORD_ALIGNMENT)
-        for seg in segments:
-            if seg.name == '.text':
-                seg.assigned_address = text_start + seg.assigned_address
-            elif seg.name == '.data':
-                seg.assigned_address = data_start + seg.assigned_address
-            elif seg.name == '.bss':
-                seg.assigned_address = bss_start + seg.assigned_address
+        text_group_start = TEXT_START
+        text_group_size = 0
+        for seg in segment_groups['RP'].values():
+            seg.start = text_group_start + text_group_size
+            text_group_size += roundup(seg.size, WORD_ALIGNMENT)
+        data_group_start = roundup(text_group_start + text_group_size, PAGE_ALIGNMENT)
+        data_group_size = 0 
+        for seg in segment_groups['RWP'].values():
+            seg.start = data_group_start + data_group_size
+            data_group_size += roundup(seg.size, WORD_ALIGNMENT)
+        bss_group_start = roundup(data_group_start + data_group_size, WORD_ALIGNMENT)
+        bss_group_size = 0
         if COMMON:
+            bss_start = bss_group_start
+            bss_size = segment_groups['RW']['.bss'].size
             common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
             common_size = 0
             for sym_name, sym in commons.items():
                 address = roundup(common_start + common_size, WORD_ALIGNMENT)
                 common_size = address + sym.value - common_start
             bss_size = common_start + common_size - bss_start
-        non_standard_segments = [s for s in segments if s.name not in ['.text', '.data', '.bss']]
+            segment_groups['RW']['.bss'].size = bss_size
+        for seg in segment_groups['RW'].values():
+            seg.start = bss_group_start + bss_group_size
+            bss_group_size += roundup(seg.size, WORD_ALIGNMENT)
 
-        out_segments = [Segment('.text', text_start, text_size, 'RP'),
-                        Segment('.data', data_start, data_size, 'RWP'),
-                        Segment('.bss', bss_start, bss_size, 'RW')] + non_standard_segments
+        # Now assign addresses to all segments based on the group they belong to
+        for seg in segments:
+            seg.assigned_address += segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
+        out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
     else:
         out_segments = segments
 

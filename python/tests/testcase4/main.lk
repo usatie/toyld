@@ -6,9 +6,9 @@ LINK
 # next word after data
 #
 # for the moment, there's no data
-.text 0    1017 R
-foo   1018 100  R
-.data 2000 320  RW
+.text 0    1017 RP
+foo   1018 100  RP
+.data 2000 320  RWP
 .bss  2320 50   RW
 # symbols
 main 0 1 D

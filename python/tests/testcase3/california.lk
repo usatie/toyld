@@ -1,8 +1,8 @@
 LINK
 3 2 0
 # segments: name base length flags
-.text 0    920 R
-.data 1000 217 RW
+.text 0    920 RP
+.data 1000 217 RWP
 .bss  1218 100  RW
 # symbols
 mellowize 10 1 D

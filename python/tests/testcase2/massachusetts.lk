@@ -1,8 +1,8 @@
 LINK
 3 3 0
 # segments: name base length flags
-.text 0    615 R
-.data 1000 300 RW
+.text 0    615 RP
+.data 1000 300 RWP
 .bss  1300 840  RW
 # symbols
 schrod 0 1 D

@@ -1,11 +1,11 @@
 LINK
 5 3 0
 # segments: name base length flags
-.text 0    615 R
-.data 1000 300 RW
+.text 0    615 RP
+.data 1000 300 RWP
 .bss  1300 840  RW
-foo   2000 100 R
-bar   3000 200 RW
+foo   2000 100 RP
+bar   3000 200 RWP
 # symbols
 schrod 0 1 D
 wiggleroom 200 0 U

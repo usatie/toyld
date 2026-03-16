@@ -1,5 +1,7 @@
 LINK
-3 0 0
+5 0 0
 .text 1000 32e0 RP
+foo 42e0 540 RP
 .data 5000 1a4c RWP
-.bss 6a4c 1fd2 RW
+bar 6a4c 504 RWP
+.bss 6f50 1fd2 RW
