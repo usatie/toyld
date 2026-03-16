@@ -86,53 +86,56 @@ def main():
         print(f"Usage: {file_name} <input_file>", file=sys.stderr)
         sys.exit(1)
 
-    output_file = 'newobj'
-    input_file = sys.argv[1]
+    output_file = 'a.out.lk'
+    input_files = sys.argv[1:]
 
     # Check if the output file already exists and remove it
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    # Simply copy the input file to the output file
-    num_segments = 0
-    num_symbols = 0
-    num_relocations = 0
-    segments = []
-    symbols = []
-    relocations = []
-    data = None
+    for input_file in input_files:
+        # Simply copy the input file to the output file
+        num_segments = 0
+        num_symbols = 0
+        num_relocations = 0
+        segments = []
+        symbols = []
+        relocations = []
+        data = None
 
-    with open(input_file, 'rb') as infile, open(output_file, 'wb') as outfile:
-        # Check magic number: 'LINK'
-        line = read_next_line(infile)
-        if line != b'LINK':
-            print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
-            print(f"Got: {line}", file=sys.stderr)
-            sys.exit(1)
+        with open(input_file, 'rb') as infile:
+            print(f"Processing input file: {input_file}")
+            # Check magic number: 'LINK'
+            line = read_next_line(infile)
+            if line != b'LINK':
+                print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
+                print(f"Got: {line}", file=sys.stderr)
+                sys.exit(1)
 
-        # Read header: 'nsegs nsyms nrels'
-        line = read_next_line(infile)
-        try:
-            num_segments, num_symbols, num_relocations = map(int, line.split())
-            print(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-        except ValueError:
-            print("Invalid header format: expected three integers", file=sys.stderr)
-            sys.exit(1)
+            # Read header: 'nsegs nsyms nrels'
+            line = read_next_line(infile)
+            try:
+                num_segments, num_symbols, num_relocations = map(int, line.split())
+                print(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+            except ValueError:
+                print("Invalid header format: expected three integers", file=sys.stderr)
+                sys.exit(1)
 
-        # Read segments
-        parse_segments(infile, num_segments, segments)
-        print(f"Segments: {segments}")
+            # Read segments
+            parse_segments(infile, num_segments, segments)
+            print(f"Segments: {segments}")
 
-        # Read symbols
-        parse_symbols(infile, num_symbols, symbols)
-        print(f"Symbols: {symbols}")
+            # Read symbols
+            parse_symbols(infile, num_symbols, symbols)
+            print(f"Symbols: {symbols}")
 
-        # Read relocations
-        parse_relocations(infile, num_relocations, relocations)
+            # Read relocations (skip for now)
+            # parse_relocations(infile, num_relocations, relocations)
 
-        # Read data
-        data = parse_data(infile)
+            # Read data (skip for now)
+            # data = parse_data(infile)
 
+    with open(output_file, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
         outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
@@ -143,8 +146,9 @@ def main():
         for loc, seg_number, ref, rel_type, extra_fields in relocations:
             extra_str = ' '.join(extra_fields)
             outfile.write(f"{loc} {seg_number} {ref} {rel_type} {extra_str}\n".encode())
-        outfile.write(data.hex().encode())
-        outfile.write(b'\n') # newline to indicate the end of the data section
+        if data is not None:
+            outfile.write(data.hex().encode())
+            outfile.write(b'\n') # newline to indicate the end of the data section
 
 if __name__ == '__main__':
     main()
