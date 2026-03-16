@@ -288,10 +288,12 @@ def main():
         out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
         out_symbols = [sym for o in objs for sym in o.symbols]
         out_relocations = [rel for o in objs for rel in o.relocations]
+        out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
     else:
         out_segments = objs[0].segments
         out_symbols = objs[0].symbols
         out_relocations = objs[0].relocations
+        out_data = objs[0].data
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
@@ -304,17 +306,14 @@ def main():
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
         if not SKIP_SYMBOLS:
-            for o in objs:
-                for sym in o.symbols:
-                    outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
+            for sym in out_symbols:
+                outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
         if not SKIP_RELOCATIONS:
-            for o in objs:
-                for rel in o.relocations:
-                    extra_str = ' '.join(rel.extra_fields)
-                    outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
+            for rel in out_relocations:
+                extra_str = ' '.join(rel.extra_fields)
+                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
         if not SKIP_DATA:
-            combined_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
-            outfile.write(combined_data.hex().encode())
+            outfile.write(out_data.hex().encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
 
 if __name__ == '__main__':
