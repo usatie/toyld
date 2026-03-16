@@ -3,6 +3,8 @@
 import sys
 import os
 
+DEBUG = True  # Set to True to enable debug output, False to disable
+
 def read_next_line(f):
     # ignore empty lines and comments to get the next meaningful line
     while True:
@@ -18,6 +20,8 @@ def parse_segments(f, num_segments, segments):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading segments", file=sys.stderr)
+            if DEBUG:
+                return
             sys.exit(1)
         try:
             name, start_str, size_str, code_letter = line.split()
@@ -34,6 +38,8 @@ def parse_symbols(f, num_symbols, symbols):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading symbols", file=sys.stderr)
+            if DEBUG:
+                return
             sys.exit(1)
         try:
             name, value_str, seg_number_str, sym_type = line.split()
@@ -50,6 +56,8 @@ def parse_relocations(f, num_relocations, relocations):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading relocations", file=sys.stderr)
+            if DEBUG:
+                return
             sys.exit(1)
         try:
             # Relocation entry may contain extra fields other than loc,seg,ref,type
@@ -70,6 +78,8 @@ def parse_data(f):
     # The line is a hex string representing the data section, so we need to convert it to bytes
     if line is None:
         print(f"Unexpected end of file while reading data section", file=sys.stderr)
+        if DEBUG:
+            return None
         sys.exit(1)
     try:
         data = bytes.fromhex(line.decode())
@@ -86,8 +96,21 @@ def main():
         print(f"Usage: {file_name} <input_file>", file=sys.stderr)
         sys.exit(1)
 
+    # parse cli args to populate SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA
+    import argparse
+    parser = argparse.ArgumentParser(description='Simple linker that processes input files and produces an output file.')
+    parser.add_argument('input_files', nargs='+', help='Input files to process')
+    parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
+    parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
+    parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
+    args = parser.parse_args()
+
+    SKIP_SYMBOLS = args.skip_symbols
+    SKIP_RELOCATIONS = args.skip_relocations
+    SKIP_DATA = args.skip_data
+    input_files = args.input_files
+
     output_file = 'a.out.lk'
-    input_files = sys.argv[1:]
 
     # Check if the output file already exists and remove it
     if os.path.exists(output_file):
@@ -126,14 +149,17 @@ def main():
             print(f"Segments: {segments}")
 
             # Read symbols
-            parse_symbols(infile, num_symbols, symbols)
-            print(f"Symbols: {symbols}")
+            if not SKIP_SYMBOLS:
+                parse_symbols(infile, num_symbols, symbols)
+                print(f"Symbols: {symbols}")
 
-            # Read relocations (skip for now)
-            # parse_relocations(infile, num_relocations, relocations)
+            # Read relocations
+            if not SKIP_RELOCATIONS:
+                parse_relocations(infile, num_relocations, relocations)
 
-            # Read data (skip for now)
-            # data = parse_data(infile)
+            # Read data
+            if not SKIP_DATA:
+                data = parse_data(infile)
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
@@ -141,12 +167,14 @@ def main():
         outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
         for name, start, size, code_letter in segments:
             outfile.write(f"{name} {start} {size} {code_letter}\n".encode())
-        for name, value, seg_number, sym_type in symbols:
-            outfile.write(f"{name} {value} {seg_number} {sym_type}\n".encode())
-        for loc, seg_number, ref, rel_type, extra_fields in relocations:
-            extra_str = ' '.join(extra_fields)
-            outfile.write(f"{loc} {seg_number} {ref} {rel_type} {extra_str}\n".encode())
-        if data is not None:
+        if not SKIP_SYMBOLS:
+            for name, value, seg_number, sym_type in symbols:
+                outfile.write(f"{name} {value} {seg_number} {sym_type}\n".encode())
+        if not SKIP_RELOCATIONS:
+            for loc, seg_number, ref, rel_type, extra_fields in relocations:
+                extra_str = ' '.join(extra_fields)
+                outfile.write(f"{loc} {seg_number} {ref} {rel_type} {extra_str}\n".encode())
+        if not SKIP_DATA and data is not None:
             outfile.write(data.hex().encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
 

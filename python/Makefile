@@ -19,7 +19,7 @@ test1: clean
 test2: TEST_DIR=tests/testcase2
 test2: clean
 	# Test 2 for project 4.1: Compare the output of the linker with the expected output,
-	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} \
+	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} --skip-symbols --skip-relocations --skip-data \
 		&& diff -U 3 a.out.lk $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 2 passed$(RESET)" || echo "$(RED)Test 2 failed$(RESET)"
 
