@@ -32,6 +32,9 @@ class Symbol:
         self.sym_type = sym_type
         self.filename = filename
 
+    def __repr__(self):
+        return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type}, filename={self.filename})"
+
 class Relocation:
     def __init__(self, loc, seg_number, ref, rel_type, extra_fields, filename=None):
         self.loc = loc
@@ -68,7 +71,7 @@ def parse_segments(f, num_segments, segments):
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
 
-def parse_symbols(f, num_symbols, symbols):
+def parse_symbols(f, num_symbols, symbols, commons):
     for i in range(num_symbols):
         line = read_next_line(f)
         if line is None:
@@ -78,9 +81,14 @@ def parse_symbols(f, num_symbols, symbols):
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
-            symbol = Symbol(name.decode(), value, seg_number, sym_type.decode(), f.name)
-            symbols.append(symbol)
-            dprint(f"Symbol {i}: name={symbol.name}, value={symbol.value}, seg_number={symbol.seg_number}, sym_type={symbol.sym_type}")
+            sym = Symbol(name.decode(), value, seg_number, sym_type.decode(), f.name)
+            symbols.append(sym)
+            if sym.sym_type == 'U' and sym.value > 0:
+                if sym.name not in commons:
+                    commons[sym.name] = sym
+                elif sym.value > commons[sym.name].value:
+                    commons[sym.name] = sym
+            dprint(f"Symbol {i}: name={sym.name}, value={sym.value}, seg_number={sym.seg_number}, sym_type={sym.sym_type}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -134,12 +142,14 @@ def main():
     parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
     parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
     parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
+    parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
     parser.add_argument('--debug', action='store_true', help='Enable debug output', default=False)
     args = parser.parse_args()
 
     SKIP_SYMBOLS = args.skip_symbols
     SKIP_RELOCATIONS = args.skip_relocations
     SKIP_DATA = args.skip_data
+    COMMON = args.common
     global DEBUG
     DEBUG = args.debug
     input_files = args.input_files
@@ -152,6 +162,7 @@ def main():
 
     segments = []
     symbols = []
+    commons = {}
     relocations = []
     data = []
     for input_file in input_files:
@@ -184,9 +195,8 @@ def main():
             dprint(f"Segments: {segments}")
 
             # Read symbols
-            if not SKIP_SYMBOLS:
-                parse_symbols(infile, num_symbols, symbols)
-                dprint(f"Symbols: {symbols}")
+            parse_symbols(infile, num_symbols, symbols, commons)
+            dprint(f"Symbols: {symbols}")
 
             # Read relocations
             if not SKIP_RELOCATIONS:
@@ -197,29 +207,33 @@ def main():
                 data_in_file = parse_data(infile)
                 data.append((data_in_file, input_file))
 
+    print(f"Common symbols: {commons}")
+
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(input_files) > 1:
         text_start = 0x1000 # start text segment at 0x1000 to leave some space for the header
         text_size = 0
         data_size = 0
         bss_size = 0
-        TEXT_ALIGNMENT = 0x0004  # align each text segment to 4 bytes
-        DATA_ALIGNMENT = 0x0004  # align each data segment to 4 bytes
-        BSS_ALIGNMENT = 0x0004  # align each bss segment to 4 bytes
+        WORD_ALIGNMENT = 0x0004
+        PAGE_ALIGNMENT = 0x1000
+
+        def roundup(size, alignment):
+            return (size + alignment - 1) // alignment * alignment
+
         for seg in segments:
             if seg.name == '.text':
                 seg.assigned_address = text_size
-                text_size += ((seg.size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
+                text_size += roundup(seg.size, WORD_ALIGNMENT)
             elif seg.name == '.data': 
                 seg.assigned_address = data_size
-                data_size += ((seg.size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
+                data_size += roundup(seg.size, WORD_ALIGNMENT)
             elif seg.name == '.bss':
                 seg.assigned_address = bss_size
-                bss_size += ((seg.size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
+                bss_size += roundup(seg.size, WORD_ALIGNMENT)
 
-        DATA_ALIGNMENT = 0x1000  # align data segment to 4KB
-        data_start = ((text_start + text_size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT  # align data segment to next 4KB boundary after text
-        bss_start = ((data_start + data_size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT  # align bss segment to next 4KB boundary after data
+        data_start = roundup(text_start + text_size, PAGE_ALIGNMENT)
+        bss_start = roundup(data_start + data_size, WORD_ALIGNMENT)
         for seg in segments:
             if seg.name == '.text':
                 seg.assigned_address = text_start + seg.assigned_address
@@ -227,6 +241,13 @@ def main():
                 seg.assigned_address = data_start + seg.assigned_address
             elif seg.name == '.bss':
                 seg.assigned_address = bss_start + seg.assigned_address
+        if COMMON:
+            common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
+            common_size = 0
+            for sym_name, sym in commons.items():
+                address = roundup(common_start + common_size, WORD_ALIGNMENT)
+                common_size = address + sym.value - common_start
+            bss_size = common_start + common_size - bss_start
         non_standard_segments = [s for s in segments if s.name not in ['.text', '.data', '.bss']]
 
         out_segments = [Segment('.text', text_start, text_size, 'RP'),
