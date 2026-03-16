@@ -29,7 +29,7 @@ def parse_segments(f, num_segments, segments):
             name, start_str, size_str, code_letter = line.split()
             start = int(start_str, 16)
             size = int(size_str, 16)
-            segments.append((name.decode(), start, size, code_letter.decode()))
+            segments.append((name.decode(), start, size, code_letter.decode(), f.name))
             dprint(f"Segment {i}: name={name.decode()}, start={start}, size={size}, code_letter={code_letter.decode()}")
         except ValueError:
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
@@ -45,7 +45,7 @@ def parse_symbols(f, num_symbols, symbols):
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
-            symbols.append((name.decode(), value, seg_number, sym_type.decode()))
+            symbols.append((name.decode(), value, seg_number, sym_type.decode(), f.name))
             dprint(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
@@ -65,7 +65,7 @@ def parse_relocations(f, num_relocations, relocations):
             loc = int(loc_str, 16)
             seg_number = int(seg_number_str, 16)
             ref = int(ref_str, 16)
-            relocations.append((loc, seg_number, ref, rel_type.decode(), extra_fields))
+            relocations.append((loc, seg_number, ref, rel_type.decode(), extra_fields, f.name))
             dprint(f"Relocation {i}: loc={loc}, seg_number={seg_number}, ref={ref}, rel_type={rel_type.decode()}, extra_fields={extra_fields}")
         except ValueError:
             print(f"Invalid relocation format on line: {line}", file=sys.stderr)
@@ -118,7 +118,7 @@ def main():
     segments = []
     symbols = []
     relocations = []
-    data = None
+    data = []
     for input_file in input_files:
         # Simply copy the input file to the output file
         num_segments = 0
@@ -159,24 +159,26 @@ def main():
 
             # Read data
             if not SKIP_DATA:
-                data = parse_data(infile)
+                data_in_file = parse_data(infile)
+                data.append((data_in_file, input_file))
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
         outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
-        for name, start, size, code_letter in segments:
+        for name, start, size, code_letter, filename in segments:
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{name} {start:x} {size:x} {code_letter}\n".encode())
         if not SKIP_SYMBOLS:
-            for name, value, seg_number, sym_type in symbols:
+            for name, value, seg_number, sym_type, filename in symbols:
                 outfile.write(f"{name} {value:x} {seg_number:x} {sym_type}\n".encode())
         if not SKIP_RELOCATIONS:
-            for loc, seg_number, ref, rel_type, extra_fields in relocations:
+            for loc, seg_number, ref, rel_type, extra_fields, filename in relocations:
                 extra_str = ' '.join(extra_fields)
                 outfile.write(f"{loc:x} {seg_number:x} {ref:x} {rel_type} {extra_str}\n".encode())
-        if not SKIP_DATA and data is not None:
-            outfile.write(data.hex().encode())
+        if not SKIP_DATA and data:
+            combined_data = b''.join(d for d, filename in data)  # combine data from all input files
+            outfile.write(combined_data.hex().encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
 
 if __name__ == '__main__':
