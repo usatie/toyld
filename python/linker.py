@@ -9,6 +9,14 @@ dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBU
 
 # All numbers in the input file are in hex, so we need to convert them from hex to int when parsing
 
+class Segment:
+    def __init__(self, name, start, size, code_letter, filename=None):
+        self.name = name
+        self.start = start
+        self.size = size
+        self.code_letter = code_letter
+        self.filename = filename
+
 def read_next_line(f):
     # ignore empty lines and comments to get the next meaningful line
     while True:
@@ -29,8 +37,9 @@ def parse_segments(f, num_segments, segments):
             name, start_str, size_str, code_letter = line.split()
             start = int(start_str, 16)
             size = int(size_str, 16)
-            segments.append((name.decode(), start, size, code_letter.decode(), f.name))
-            dprint(f"Segment {i}: name={name.decode()}, start={start}, size={size}, code_letter={code_letter.decode()}")
+            segment = Segment(name.decode(), start, size, code_letter.decode(), f.name)
+            segments.append(segment)
+            dprint(f"Segment {i}: name={segment.name}, start={segment.start}, size={segment.size}, code_letter={segment.code_letter}")
         except ValueError:
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -171,24 +180,24 @@ def main():
         TEXT_ALIGNMENT = 0x0004  # align each text segment to 4 bytes
         DATA_ALIGNMENT = 0x0004  # align each data segment to 4 bytes
         BSS_ALIGNMENT = 0x0004  # align each bss segment to 4 bytes
-        for name, start, size, code_letter, filename in segments:
-            if name == '.text':
-                text_size += ((size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
-            elif name == '.data': 
-                data_size += ((size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
-            elif name == '.bss':
-                bss_size += ((size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
+        for segment in segments:
+            if segment.name == '.text':
+                text_size += ((segment.size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
+            elif segment.name == '.data': 
+                data_size += ((segment.size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
+            elif segment.name == '.bss':
+                bss_size += ((segment.size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
 
         DATA_ALIGNMENT = 0x1000  # align data segment to 4KB
         data_start = ((text_start + text_size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT  # align data segment to next 4KB boundary after text
         bss_start = ((data_start + data_size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT  # align bss segment to next 4KB boundary after data
-        non_standard_segments = [(name, start, size, code_letter) for name, start, size, code_letter, _ in segments if name not in ['.text', '.data', '.bss']]
+        non_standard_segments = [s for s in segments if s.name not in ['.text', '.data', '.bss']]
 
-        out_segments = [('.text', text_start, text_size, 'RP'),
-                        ('.data', data_start, data_size, 'RWP'),
-                        ('.bss', bss_start, bss_size, 'RW')] + non_standard_segments
+        out_segments = [Segment('.text', text_start, text_size, 'RP'),
+                        Segment('.data', data_start, data_size, 'RWP'),
+                        Segment('.bss', bss_start, bss_size, 'RW')] + non_standard_segments
     else:
-        out_segments = [(name, start, size, code_letter) for name, start, size, code_letter, _ in segments]
+        out_segments = segments
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
@@ -198,9 +207,9 @@ def main():
         if SKIP_RELOCATIONS:
             num_relocations = 0
         outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
-        for name, start, size, code_letter in out_segments:
+        for s in out_segments:
             # we need to convert int back to hex when writing to the output file
-            outfile.write(f"{name} {start:x} {size:x} {code_letter}\n".encode())
+            outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
         if not SKIP_SYMBOLS:
             for name, value, seg_number, sym_type, filename in symbols:
                 outfile.write(f"{name} {value:x} {seg_number:x} {sym_type}\n".encode())
