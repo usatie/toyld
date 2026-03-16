@@ -144,37 +144,7 @@ def parse_data(f):
         print(f"Invalid data format: expected hex string, got: {line}", file=sys.stderr)
         sys.exit(1)
 
-def main():
-    if len(sys.argv) < 2:
-        file_name = sys.argv[0]
-        print(f"Usage: {file_name} <input_file>", file=sys.stderr)
-        sys.exit(1)
-
-    # parse cli args to populate SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA
-    import argparse
-    parser = argparse.ArgumentParser(description='Simple linker that processes input files and produces an output file.')
-    parser.add_argument('input_files', nargs='+', help='Input files to process')
-    parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
-    parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
-    parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
-    parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
-    parser.add_argument('--debug', action='store_true', help='Enable debug output', default=False)
-    args = parser.parse_args()
-
-    SKIP_SYMBOLS = args.skip_symbols
-    SKIP_RELOCATIONS = args.skip_relocations
-    SKIP_DATA = args.skip_data
-    COMMON = args.common
-    global DEBUG
-    DEBUG = args.debug
-    input_files = args.input_files
-
-    output_file = 'a.out.lk'
-
-    # Check if the output file already exists and remove it
-    if os.path.exists(output_file):
-        os.remove(output_file)
-
+def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_DATA=False):
     objs = []
     for input_file in input_files:
         # Simply copy the input file to the output file
@@ -215,6 +185,40 @@ def main():
             if not SKIP_DATA:
                 obj.data = parse_data(infile)
         objs.append(obj)
+    return objs
+
+def main():
+    if len(sys.argv) < 2:
+        file_name = sys.argv[0]
+        print(f"Usage: {file_name} <input_file>", file=sys.stderr)
+        sys.exit(1)
+
+    # parse cli args to populate SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA
+    import argparse
+    parser = argparse.ArgumentParser(description='Simple linker that processes input files and produces an output file.')
+    parser.add_argument('input_files', nargs='+', help='Input files to process')
+    parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
+    parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
+    parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
+    parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
+    parser.add_argument('--debug', action='store_true', help='Enable debug output', default=False)
+    args = parser.parse_args()
+
+    SKIP_SYMBOLS = args.skip_symbols
+    SKIP_RELOCATIONS = args.skip_relocations
+    SKIP_DATA = args.skip_data
+    COMMON = args.common
+    global DEBUG
+    DEBUG = args.debug
+    input_files = args.input_files
+
+    output_file = 'a.out.lk'
+
+    # Check if the output file already exists and remove it
+    if os.path.exists(output_file):
+        os.remove(output_file)
+
+    objs = parse_objects(input_files, SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA)
 
     commons = {}
     for o in objs:
@@ -282,18 +286,20 @@ def main():
             for seg in o.segments:
                 seg.assigned_address += segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
         out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
+        out_symbols = [sym for o in objs for sym in o.symbols]
+        out_relocations = [rel for o in objs for rel in o.relocations]
     else:
         out_segments = objs[0].segments
+        out_symbols = objs[0].symbols
+        out_relocations = objs[0].relocations
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
         num_segments = len(out_segments)
-        if SKIP_SYMBOLS:
-            num_symbols = 0
-        if SKIP_RELOCATIONS:
-            num_relocations = 0
-        outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
+        num_symbols = 0 if SKIP_SYMBOLS else len(out_symbols)
+        num_relocations = 0 if SKIP_RELOCATIONS else len(out_relocations)
+        outfile.write(f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode())
         for s in out_segments:
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
