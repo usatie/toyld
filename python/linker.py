@@ -162,11 +162,43 @@ def main():
                 data_in_file = parse_data(infile)
                 data.append((data_in_file, input_file))
 
+    # Allocate Storage for .text, .data, .bss segments and assign addresses
+    if len(input_files) > 1:
+        text_start = 0x1000 # start text segment at 0x1000 to leave some space for the header
+        text_size = 0
+        data_size = 0
+        bss_size = 0
+        TEXT_ALIGNMENT = 0x0004  # align each text segment to 4 bytes
+        DATA_ALIGNMENT = 0x0004  # align each data segment to 4 bytes
+        BSS_ALIGNMENT = 0x0004  # align each bss segment to 4 bytes
+        for name, start, size, code_letter, filename in segments:
+            if name == '.text':
+                text_size += ((size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
+            elif name == '.data': 
+                data_size += ((size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
+            elif name == '.bss':
+                bss_size += ((size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
+
+        DATA_ALIGNMENT = 0x1000  # align data segment to 4KB
+        data_start = ((text_start + text_size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT  # align data segment to next 4KB boundary after text
+        bss_start = ((data_start + data_size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT  # align bss segment to next 4KB boundary after data
+        non_standard_segments = [(name, start, size, code_letter) for name, start, size, code_letter, _ in segments if name not in ['.text', '.data', '.bss']]
+
+        out_segments = [('.text', text_start, text_size, 'RP'),
+                        ('.data', data_start, data_size, 'RWP'),
+                        ('.bss', bss_start, bss_size, 'RW')] + non_standard_segments
+    else:
+        out_segments = [(name, start, size, code_letter) for name, start, size, code_letter, _ in segments]
+
     with open(output_file, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
+        if SKIP_SYMBOLS:
+            num_symbols = 0
+        if SKIP_RELOCATIONS:
+            num_relocations = 0
         outfile.write(f"{num_segments} {num_symbols} {num_relocations}\n".encode())
-        for name, start, size, code_letter, filename in segments:
+        for name, start, size, code_letter in out_segments:
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{name} {start:x} {size:x} {code_letter}\n".encode())
         if not SKIP_SYMBOLS:
