@@ -6,7 +6,7 @@ RED=\033[0;31m
 RESET=\033[0m
 
 .PHONY: all
-all: test1 test2 test3
+all: test1 test2 test3 test4
 
 test1: TEST_DIR=tests/testcase1
 test1: clean
@@ -29,6 +29,13 @@ test3: clean
 	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} --skip-symbols --skip-relocations --skip-data --common \
 		&& diff -U 3 a.out.lk $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 3 passed$(RESET)" || echo "$(RED)Test 3 failed$(RESET)"
+
+test4: TEST_DIR=tests/testcase4
+test4: clean
+	# Test4 for project 4.3: Arbitrary segments
+	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} --skip-symbols --skip-relocations --skip-data --common \
+		&& diff -U 3 a.out.lk $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 4 passed$(RESET)" || echo "$(RED)Test 4 failed$(RESET)"
 
 
 .PHONY: clean

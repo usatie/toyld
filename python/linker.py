@@ -259,6 +259,7 @@ def main():
     with open(output_file, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
+        num_segments = len(out_segments)
         if SKIP_SYMBOLS:
             num_symbols = 0
         if SKIP_RELOCATIONS:
