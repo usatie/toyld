@@ -3,6 +3,10 @@
 import sys
 import os
 
+DEBUG = False
+dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
+
+
 # All numbers in the input file are in hex, so we need to convert them from hex to int when parsing
 
 def read_next_line(f):
@@ -26,7 +30,7 @@ def parse_segments(f, num_segments, segments):
             start = int(start_str, 16)
             size = int(size_str, 16)
             segments.append((name.decode(), start, size, code_letter.decode()))
-            print(f"Segment {i}: name={name.decode()}, start={start}, size={size}, code_letter={code_letter.decode()}")
+            dprint(f"Segment {i}: name={name.decode()}, start={start}, size={size}, code_letter={code_letter.decode()}")
         except ValueError:
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -42,7 +46,7 @@ def parse_symbols(f, num_symbols, symbols):
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
             symbols.append((name.decode(), value, seg_number, sym_type.decode()))
-            print(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
+            dprint(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -62,7 +66,7 @@ def parse_relocations(f, num_relocations, relocations):
             seg_number = int(seg_number_str, 16)
             ref = int(ref_str, 16)
             relocations.append((loc, seg_number, ref, rel_type.decode(), extra_fields))
-            print(f"Relocation {i}: loc={loc}, seg_number={seg_number}, ref={ref}, rel_type={rel_type.decode()}, extra_fields={extra_fields}")
+            dprint(f"Relocation {i}: loc={loc}, seg_number={seg_number}, ref={ref}, rel_type={rel_type.decode()}, extra_fields={extra_fields}")
         except ValueError:
             print(f"Invalid relocation format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -75,8 +79,8 @@ def parse_data(f):
         sys.exit(1)
     try:
         data = bytes.fromhex(line.decode())
-        print(f"Data section length: {len(data)} bytes")
-        print(f"Data section (hex): {data.hex()}")
+        dprint(f"Data section length: {len(data)} bytes")
+        dprint(f"Data section (hex): {data.hex()}")
         return data
     except ValueError:
         print(f"Invalid data format: expected hex string, got: {line}", file=sys.stderr)
@@ -95,11 +99,14 @@ def main():
     parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
     parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
     parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
+    parser.add_argument('--debug', action='store_true', help='Enable debug output', default=False)
     args = parser.parse_args()
 
     SKIP_SYMBOLS = args.skip_symbols
     SKIP_RELOCATIONS = args.skip_relocations
     SKIP_DATA = args.skip_data
+    global DEBUG
+    DEBUG = args.debug
     input_files = args.input_files
 
     output_file = 'a.out.lk'
@@ -119,7 +126,7 @@ def main():
         num_relocations = 0
 
         with open(input_file, 'rb') as infile:
-            print(f"Processing input file: {input_file}")
+            dprint(f"Processing input file: {input_file}")
             # Check magic number: 'LINK'
             line = read_next_line(infile)
             if line != b'LINK':
@@ -132,19 +139,19 @@ def main():
             try:
                 # num are written in hex, so we need to convert them from hex to int
                 num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
-                print(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+                dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
             except ValueError:
                 print("Invalid header format: expected three integers", file=sys.stderr)
                 sys.exit(1)
 
             # Read segments
             parse_segments(infile, num_segments, segments)
-            print(f"Segments: {segments}")
+            dprint(f"Segments: {segments}")
 
             # Read symbols
             if not SKIP_SYMBOLS:
                 parse_symbols(infile, num_symbols, symbols)
-                print(f"Symbols: {symbols}")
+                dprint(f"Symbols: {symbols}")
 
             # Read relocations
             if not SKIP_RELOCATIONS:
