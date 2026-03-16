@@ -9,6 +9,20 @@ dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBU
 
 # All numbers in the input file are in hex, so we need to convert them from hex to int when parsing
 
+class ObjectFileData:
+    def __init__(self, filename, num_segments, num_symbols, num_relocations):
+        self.filename = filename
+        self.num_segments = num_segments
+        self.num_symbols = num_symbols
+        self.num_relocations = num_relocations
+        self.segments = []
+        self.symbols = []
+        self.relocations = []
+        self.data = None
+
+    def __repr__(self):
+        return f"ObjectFileData(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
+
 class Segment:
     def __init__(self, name, start, size, code_letter, filename=None):
         self.name = name
@@ -54,7 +68,8 @@ def read_next_line(f):
         if line and not line.startswith(b'#'):
             return line
 
-def parse_segments(f, num_segments, segments):
+def parse_segments(f, num_segments):
+    segments = []
     for i in range(num_segments):
         line = read_next_line(f)
         if line is None:
@@ -70,6 +85,7 @@ def parse_segments(f, num_segments, segments):
         except ValueError:
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
+    return segments
 
 def parse_symbols(f, num_symbols, symbols, commons):
     for i in range(num_symbols):
@@ -160,16 +176,13 @@ def main():
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    segments = []
     symbols = []
     commons = {}
     relocations = []
     data = []
+    objs = []
     for input_file in input_files:
         # Simply copy the input file to the output file
-        num_segments = 0
-        num_symbols = 0
-        num_relocations = 0
 
         with open(input_file, 'rb') as infile:
             dprint(f"Processing input file: {input_file}")
@@ -186,13 +199,14 @@ def main():
                 # num are written in hex, so we need to convert them from hex to int
                 num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
                 dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+                obj = ObjectFileData(input_file, num_segments, num_symbols, num_relocations)
             except ValueError:
                 print("Invalid header format: expected three integers", file=sys.stderr)
                 sys.exit(1)
 
             # Read segments
-            parse_segments(infile, num_segments, segments)
-            dprint(f"Segments: {segments}")
+            obj.segments = parse_segments(infile, obj.num_segments)
+            dprint(f"Segments: {obj.segments}")
 
             # Read symbols
             parse_symbols(infile, num_symbols, symbols, commons)
@@ -206,6 +220,7 @@ def main():
             if not SKIP_DATA:
                 data_in_file = parse_data(infile)
                 data.append((data_in_file, input_file))
+        objs.append(obj)
 
     dprint(f"Common symbols: {commons}")
 
@@ -224,14 +239,15 @@ def main():
         def roundup(size, alignment):
             return (size + alignment - 1) // alignment * alignment
 
-        for seg in segments:
-            if seg.code_letter not in segment_groups:
-                print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
-                sys.exit(1)
-            if seg.name not in segment_groups[seg.code_letter]:
-                segment_groups[seg.code_letter][seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
-            seg.assigned_address = segment_groups[seg.code_letter][seg.name].size # Assign offset in the merged segment for now
-            segment_groups[seg.code_letter][seg.name].size += roundup(seg.size, WORD_ALIGNMENT)
+        for o in objs:
+            for seg in o.segments:
+                if seg.code_letter not in segment_groups:
+                    print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
+                    sys.exit(1)
+                if seg.name not in segment_groups[seg.code_letter]:
+                    segment_groups[seg.code_letter][seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
+                seg.assigned_address = segment_groups[seg.code_letter][seg.name].size # Assign offset in the merged segment for now
+                segment_groups[seg.code_letter][seg.name].size += roundup(seg.size, WORD_ALIGNMENT)
 
         text_group_start = TEXT_START
         text_group_size = 0
@@ -260,11 +276,12 @@ def main():
             bss_group_size += roundup(seg.size, WORD_ALIGNMENT)
 
         # Now assign addresses to all segments based on the group they belong to
-        for seg in segments:
-            seg.assigned_address += segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
+        for o in objs:
+            for seg in o.segments:
+                seg.assigned_address += segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
         out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
     else:
-        out_segments = segments
+        out_segments = objs[0].segments
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
