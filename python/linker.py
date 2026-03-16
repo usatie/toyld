@@ -87,7 +87,8 @@ def parse_segments(f, num_segments):
             sys.exit(1)
     return segments
 
-def parse_symbols(f, num_symbols, symbols, commons):
+def parse_symbols(f, num_symbols):
+    symbols = []
     for i in range(num_symbols):
         line = read_next_line(f)
         if line is None:
@@ -99,15 +100,11 @@ def parse_symbols(f, num_symbols, symbols, commons):
             seg_number = int(seg_number_str, 16)
             sym = Symbol(name.decode(), value, seg_number, sym_type.decode(), f.name)
             symbols.append(sym)
-            if sym.sym_type == 'U' and sym.value > 0:
-                if sym.name not in commons:
-                    commons[sym.name] = sym
-                elif sym.value > commons[sym.name].value:
-                    commons[sym.name] = sym
             dprint(f"Symbol {i}: name={sym.name}, value={sym.value}, seg_number={sym.seg_number}, sym_type={sym.sym_type}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
             sys.exit(1)
+    return symbols
 
 def parse_relocations(f, num_relocations, relocations):
     for i in range(num_relocations):
@@ -176,8 +173,6 @@ def main():
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    symbols = []
-    commons = {}
     relocations = []
     data = []
     objs = []
@@ -209,8 +204,8 @@ def main():
             dprint(f"Segments: {obj.segments}")
 
             # Read symbols
-            parse_symbols(infile, num_symbols, symbols, commons)
-            dprint(f"Symbols: {symbols}")
+            obj.symbols = parse_symbols(infile, num_symbols)
+            dprint(f"Symbols: {obj.symbols}")
 
             # Read relocations
             if not SKIP_RELOCATIONS:
@@ -222,6 +217,14 @@ def main():
                 data.append((data_in_file, input_file))
         objs.append(obj)
 
+    commons = {}
+    for o in objs:
+        for sym in o.symbols:
+            if sym.sym_type == 'U' and sym.value > 0:
+                if sym.name not in commons:
+                    commons[sym.name] = sym
+                elif sym.value > commons[sym.name].value:
+                    commons[sym.name] = sym
     dprint(f"Common symbols: {commons}")
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
@@ -296,8 +299,9 @@ def main():
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
         if not SKIP_SYMBOLS:
-            for sym in symbols:
-                outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
+            for o in objs:
+                for sym in o.symbols:
+                    outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
         if not SKIP_RELOCATIONS:
             for rel in relocations:
                 extra_str = ' '.join(rel.extra_fields)
