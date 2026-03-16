@@ -3,8 +3,6 @@
 import sys
 import os
 
-DEBUG = True  # Set to True to enable debug output, False to disable
-
 def read_next_line(f):
     # ignore empty lines and comments to get the next meaningful line
     while True:
@@ -20,8 +18,6 @@ def parse_segments(f, num_segments, segments):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading segments", file=sys.stderr)
-            if DEBUG:
-                return
             sys.exit(1)
         try:
             name, start_str, size_str, code_letter = line.split()
@@ -38,8 +34,6 @@ def parse_symbols(f, num_symbols, symbols):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading symbols", file=sys.stderr)
-            if DEBUG:
-                return
             sys.exit(1)
         try:
             name, value_str, seg_number_str, sym_type = line.split()
@@ -56,8 +50,6 @@ def parse_relocations(f, num_relocations, relocations):
         line = read_next_line(f)
         if line is None:
             print(f"Unexpected end of file while reading relocations", file=sys.stderr)
-            if DEBUG:
-                return
             sys.exit(1)
         try:
             # Relocation entry may contain extra fields other than loc,seg,ref,type
@@ -78,8 +70,6 @@ def parse_data(f):
     # The line is a hex string representing the data section, so we need to convert it to bytes
     if line is None:
         print(f"Unexpected end of file while reading data section", file=sys.stderr)
-        if DEBUG:
-            return None
         sys.exit(1)
     try:
         data = bytes.fromhex(line.decode())
