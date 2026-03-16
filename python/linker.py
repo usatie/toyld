@@ -24,39 +24,39 @@ class ObjectFileData:
         return f"ObjectFileData(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
 
 class Segment:
-    def __init__(self, name, start, size, code_letter, filename=None):
+    def __init__(self, name, start, size, code_letter):
         self.name = name
         self.start = start
         self.size = size
         self.code_letter = code_letter
-        self.filename = filename
         self.assigned_address = None  # this will be used to store the assigned address for this segment when we allocate storage for it
 
     def __repr__(self):
         if self.assigned_address is None:
-            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, filename={self.filename})"
+            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter})"
         else:
-            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, filename={self.filename}, assigned_address={self.assigned_address:x})"
+            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, assigned_address={self.assigned_address:x})"
 
 class Symbol:
-    def __init__(self, name, value, seg_number, sym_type, filename=None):
+    def __init__(self, name, value, seg_number, sym_type):
         self.name = name
         self.value = value
         self.seg_number = seg_number
         self.sym_type = sym_type
-        self.filename = filename
 
     def __repr__(self):
-        return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type}, filename={self.filename})"
+        return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type})"
 
 class Relocation:
-    def __init__(self, loc, seg_number, ref, rel_type, extra_fields, filename=None):
+    def __init__(self, loc, seg_number, ref, rel_type, extra_fields):
         self.loc = loc
         self.seg_number = seg_number
         self.ref = ref
         self.rel_type = rel_type
         self.extra_fields = extra_fields
-        self.filename = filename
+
+    def __repr__(self):
+        return f"Relocation(loc=0x{self.loc:x}, seg_number=0x{self.seg_number:x}, ref=0x{self.ref:x}, rel_type={self.rel_type}, extra_fields={self.extra_fields})"
 
 def read_next_line(f):
     # ignore empty lines and comments to get the next meaningful line
@@ -79,7 +79,7 @@ def parse_segments(f, num_segments):
             name, start_str, size_str, code_letter = line.split()
             start = int(start_str, 16)
             size = int(size_str, 16)
-            seg = Segment(name.decode(), start, size, code_letter.decode(), f.name)
+            seg = Segment(name.decode(), start, size, code_letter.decode())
             segments.append(seg)
             dprint(f"Segment {i}: name={seg.name}, start={seg.start}, size={seg.size}, code_letter={seg.code_letter}")
         except ValueError:
@@ -98,7 +98,7 @@ def parse_symbols(f, num_symbols):
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
-            sym = Symbol(name.decode(), value, seg_number, sym_type.decode(), f.name)
+            sym = Symbol(name.decode(), value, seg_number, sym_type.decode())
             symbols.append(sym)
             dprint(f"Symbol {i}: name={sym.name}, value={sym.value}, seg_number={sym.seg_number}, sym_type={sym.sym_type}")
         except ValueError:
@@ -121,7 +121,7 @@ def parse_relocations(f, num_relocations):
             loc = int(loc_str, 16)
             seg_number = int(seg_number_str, 16)
             ref = int(ref_str, 16)
-            relocation = Relocation(loc, seg_number, ref, rel_type.decode(), extra_fields, f.name)
+            relocation = Relocation(loc, seg_number, ref, rel_type.decode(), extra_fields)
             relocations.append(relocation)
             dprint(f"Relocation {i}: loc={relocation.loc}, seg_number={relocation.seg_number}, ref={relocation.ref}, rel_type={relocation.rel_type}, extra_fields={relocation.extra_fields}")
         except ValueError:
