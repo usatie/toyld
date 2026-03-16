@@ -17,6 +17,23 @@ class Segment:
         self.code_letter = code_letter
         self.filename = filename
 
+class Symbol:
+    def __init__(self, name, value, seg_number, sym_type, filename=None):
+        self.name = name
+        self.value = value
+        self.seg_number = seg_number
+        self.sym_type = sym_type
+        self.filename = filename
+
+class Relocation:
+    def __init__(self, loc, seg_number, ref, rel_type, extra_fields, filename=None):
+        self.loc = loc
+        self.seg_number = seg_number
+        self.ref = ref
+        self.rel_type = rel_type
+        self.extra_fields = extra_fields
+        self.filename = filename
+
 def read_next_line(f):
     # ignore empty lines and comments to get the next meaningful line
     while True:
@@ -54,8 +71,9 @@ def parse_symbols(f, num_symbols, symbols):
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
-            symbols.append((name.decode(), value, seg_number, sym_type.decode(), f.name))
-            dprint(f"Symbol {i}: name={name.decode()}, value={value}, seg_number={seg_number}, sym_type={sym_type.decode()}")
+            symbol = Symbol(name.decode(), value, seg_number, sym_type.decode(), f.name)
+            symbols.append(symbol)
+            dprint(f"Symbol {i}: name={symbol.name}, value={symbol.value}, seg_number={symbol.seg_number}, sym_type={symbol.sym_type}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -74,8 +92,9 @@ def parse_relocations(f, num_relocations, relocations):
             loc = int(loc_str, 16)
             seg_number = int(seg_number_str, 16)
             ref = int(ref_str, 16)
-            relocations.append((loc, seg_number, ref, rel_type.decode(), extra_fields, f.name))
-            dprint(f"Relocation {i}: loc={loc}, seg_number={seg_number}, ref={ref}, rel_type={rel_type.decode()}, extra_fields={extra_fields}")
+            relocation = Relocation(loc, seg_number, ref, rel_type.decode(), extra_fields, f.name)
+            relocations.append(relocation)
+            dprint(f"Relocation {i}: loc={relocation.loc}, seg_number={relocation.seg_number}, ref={relocation.ref}, rel_type={relocation.rel_type}, extra_fields={relocation.extra_fields}")
         except ValueError:
             print(f"Invalid relocation format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -211,12 +230,12 @@ def main():
             # we need to convert int back to hex when writing to the output file
             outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
         if not SKIP_SYMBOLS:
-            for name, value, seg_number, sym_type, filename in symbols:
-                outfile.write(f"{name} {value:x} {seg_number:x} {sym_type}\n".encode())
+            for sym in symbols:
+                outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
         if not SKIP_RELOCATIONS:
-            for loc, seg_number, ref, rel_type, extra_fields, filename in relocations:
-                extra_str = ' '.join(extra_fields)
-                outfile.write(f"{loc:x} {seg_number:x} {ref:x} {rel_type} {extra_str}\n".encode())
+            for rel in relocations:
+                extra_str = ' '.join(rel.extra_fields)
+                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
         if not SKIP_DATA and data:
             combined_data = b''.join(d for d, filename in data)  # combine data from all input files
             outfile.write(combined_data.hex().encode())
