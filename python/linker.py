@@ -207,7 +207,7 @@ def main():
                 data_in_file = parse_data(infile)
                 data.append((data_in_file, input_file))
 
-    print(f"Common symbols: {commons}")
+    dprint(f"Common symbols: {commons}")
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(input_files) > 1:

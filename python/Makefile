@@ -28,7 +28,7 @@ test3: clean
 	# Test 3 for project 4.2: UNIX-style common blocks
 	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} --skip-symbols --skip-relocations --skip-data --common \
 		&& diff -U 3 a.out.lk $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 2 passed$(RESET)" || echo "$(RED)Test 2 failed$(RESET)"
+		&& echo "$(GREEN)Test 3 passed$(RESET)" || echo "$(RED)Test 3 failed$(RESET)"
 
 
 .PHONY: clean
