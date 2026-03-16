@@ -16,6 +16,13 @@ class Segment:
         self.size = size
         self.code_letter = code_letter
         self.filename = filename
+        self.assigned_address = None  # this will be used to store the assigned address for this segment when we allocate storage for it
+
+    def __repr__(self):
+        if self.assigned_address is None:
+            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, filename={self.filename})"
+        else:
+            return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, filename={self.filename}, assigned_address={self.assigned_address:x})"
 
 class Symbol:
     def __init__(self, name, value, seg_number, sym_type, filename=None):
@@ -54,9 +61,9 @@ def parse_segments(f, num_segments, segments):
             name, start_str, size_str, code_letter = line.split()
             start = int(start_str, 16)
             size = int(size_str, 16)
-            segment = Segment(name.decode(), start, size, code_letter.decode(), f.name)
-            segments.append(segment)
-            dprint(f"Segment {i}: name={segment.name}, start={segment.start}, size={segment.size}, code_letter={segment.code_letter}")
+            seg = Segment(name.decode(), start, size, code_letter.decode(), f.name)
+            segments.append(seg)
+            dprint(f"Segment {i}: name={seg.name}, start={seg.start}, size={seg.size}, code_letter={seg.code_letter}")
         except ValueError:
             print(f"Invalid segment format on line: {line}", file=sys.stderr)
             sys.exit(1)
@@ -199,17 +206,27 @@ def main():
         TEXT_ALIGNMENT = 0x0004  # align each text segment to 4 bytes
         DATA_ALIGNMENT = 0x0004  # align each data segment to 4 bytes
         BSS_ALIGNMENT = 0x0004  # align each bss segment to 4 bytes
-        for segment in segments:
-            if segment.name == '.text':
-                text_size += ((segment.size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
-            elif segment.name == '.data': 
-                data_size += ((segment.size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
-            elif segment.name == '.bss':
-                bss_size += ((segment.size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
+        for seg in segments:
+            if seg.name == '.text':
+                seg.assigned_address = text_size
+                text_size += ((seg.size + TEXT_ALIGNMENT - 1) // TEXT_ALIGNMENT) * TEXT_ALIGNMENT
+            elif seg.name == '.data': 
+                seg.assigned_address = data_size
+                data_size += ((seg.size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT
+            elif seg.name == '.bss':
+                seg.assigned_address = bss_size
+                bss_size += ((seg.size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT
 
         DATA_ALIGNMENT = 0x1000  # align data segment to 4KB
         data_start = ((text_start + text_size + DATA_ALIGNMENT - 1) // DATA_ALIGNMENT) * DATA_ALIGNMENT  # align data segment to next 4KB boundary after text
         bss_start = ((data_start + data_size + BSS_ALIGNMENT - 1) // BSS_ALIGNMENT) * BSS_ALIGNMENT  # align bss segment to next 4KB boundary after data
+        for seg in segments:
+            if seg.name == '.text':
+                seg.assigned_address = text_start + seg.assigned_address
+            elif seg.name == '.data':
+                seg.assigned_address = data_start + seg.assigned_address
+            elif seg.name == '.bss':
+                seg.assigned_address = bss_start + seg.assigned_address
         non_standard_segments = [s for s in segments if s.name not in ['.text', '.data', '.bss']]
 
         out_segments = [Segment('.text', text_start, text_size, 'RP'),
