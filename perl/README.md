@@ -34,3 +34,10 @@ perl -I. linkproj04-2.pl ch4main.lk ch4calif.lk ch4mass.lk ch4newyork.lk
 # Project 4-3
 perl -I. linkproj04-3.pl ch4main.lk ch4calif.lk ch4mass.lk ch4newyork.lk
 ```
+
+## Notes
+Even though these scripts were written by the author Levine, they are not necessarily correct.
+
+### Project 4-2
+- The calculation of common block base address is not correct, as it adds bss size twice to the bss's base address.
+- The resulting bss size does not include the common block size, which is also incorrect.
