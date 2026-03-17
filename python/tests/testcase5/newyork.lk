@@ -1,0 +1,13 @@
+LINK
+5 3 0
+# segments: name base length flags
+.text 0    1390 RP
+.data 2000 1213  RWP
+.bss  3214 1400  RW
+foo   4000 240 RP
+bar   5000 302 RWP
+# symbols
+mug 0 1 D
+harbor 0 0 U
+# common
+wiggleroom 80 0 U

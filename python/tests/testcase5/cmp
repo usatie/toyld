@@ -1,0 +1,14 @@
+LINK
+5 6 0
+.text 1000 32e0 RP
+foo 42e0 540 RP
+.data 5000 1a4c RWP
+bar 6a4c 504 RWP
+.bss 6f50 1fd2 RW
+
+mellowize 10 1 D # .text
+hottub 42 0 U
+main 0 1 D # .text
+schrod 0 1 D # .text
+harbor 300 3 D # .data
+wiggleroom 0 5 D # this needs to be common block in .bss segment
