@@ -187,6 +187,80 @@ def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_
         objs.append(obj)
     return objs
 
+def roundup(size, alignment):
+    return (size + alignment - 1) // alignment * alignment
+
+def allocate_storage(objs):
+    # Find all common blocks
+    commons = {}
+    for o in objs:
+        for sym in o.symbols:
+            if sym.sym_type == 'U' and sym.value > 0:
+                if sym.name not in commons:
+                    commons[sym.name] = sym
+                elif sym.value > commons[sym.name].value:
+                    commons[sym.name] = sym
+    dprint(f"Common symbols: {commons}")
+
+    # start text segment at 0x1000 to leave some space for the header
+    TEXT_START = 0x1000
+    segment_groups = {
+            'RP': {'.text': Segment('.text', 0, 0, 'RP')}, # read-only and present, code
+            'RWP': {'.data': Segment('.data', 0, 0, 'RWP')}, # read-write and present, data
+            'RW': {'.bss': Segment('.bss', 0, 0, 'RW')} # read-write and not present, uninitialized data
+    }
+    WORD_ALIGNMENT = 0x0004
+    PAGE_ALIGNMENT = 0x1000
+
+    # Calculate the size of each segment group (textgroup, datagroup, bssgroup)
+    for o in objs:
+        for seg in o.segments:
+            if seg.code_letter not in segment_groups:
+                print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
+                sys.exit(1)
+            if seg.name not in segment_groups[seg.code_letter]:
+                segment_groups[seg.code_letter][seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
+            seg.assigned_offset = segment_groups[seg.code_letter][seg.name].size # For now, assign offset in the merged segment for now
+            segment_groups[seg.code_letter][seg.name].size += roundup(seg.size, WORD_ALIGNMENT)
+
+    # Calculate the start address of segments in textgroup
+    text_group_start = TEXT_START
+    text_group_size = 0
+    for seg in segment_groups['RP'].values():
+        seg.start = text_group_start + text_group_size
+        text_group_size += roundup(seg.size, WORD_ALIGNMENT)
+
+    # Calculate the start address of segments in datagroup
+    data_group_start = roundup(text_group_start + text_group_size, PAGE_ALIGNMENT)
+    data_group_size = 0 
+    for seg in segment_groups['RWP'].values():
+        seg.start = data_group_start + data_group_size
+        data_group_size += roundup(seg.size, WORD_ALIGNMENT)
+
+    # Calculate the start address of segments in bssgroup
+    bss_group_start = roundup(data_group_start + data_group_size, WORD_ALIGNMENT)
+    bss_group_size = 0
+    # Allocate space for common blocks at the end of the bss segment
+    if COMMON:
+        bss_start = bss_group_start
+        bss_size = segment_groups['RW']['.bss'].size
+        common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
+        common_size = 0
+        for sym_name, sym in commons.items():
+            address = roundup(common_start + common_size, WORD_ALIGNMENT)
+            common_size = address + sym.value - common_start
+        bss_size = common_start + common_size - bss_start
+        segment_groups['RW']['.bss'].size = bss_size
+    for seg in segment_groups['RW'].values():
+        seg.start = bss_group_start + bss_group_size
+        bss_group_size += roundup(seg.size, WORD_ALIGNMENT)
+
+    # Now assign addresses to all segments based on the group they belong to
+    for o in objs:
+        for seg in o.segments:
+            seg.assigned_address = seg.assigned_offset + segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
+    return [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -220,80 +294,14 @@ def main():
 
     objs = parse_objects(input_files, SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA)
 
-    commons = {}
-    for o in objs:
-        for sym in o.symbols:
-            if sym.sym_type == 'U' and sym.value > 0:
-                if sym.name not in commons:
-                    commons[sym.name] = sym
-                elif sym.value > commons[sym.name].value:
-                    commons[sym.name] = sym
-    dprint(f"Common symbols: {commons}")
-
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    if len(input_files) > 1:
-        # start text segment at 0x1000 to leave some space for the header
-        TEXT_START = 0x1000
-        segment_groups = {
-                'RP': {'.text': Segment('.text', 0, 0, 'RP')}, # read-only and present, code
-                'RWP': {'.data': Segment('.data', 0, 0, 'RWP')}, # read-write and present, data
-                'RW': {'.bss': Segment('.bss', 0, 0, 'RW')} # read-write and not present, uninitialized data
-        }
-        WORD_ALIGNMENT = 0x0004
-        PAGE_ALIGNMENT = 0x1000
-
-        def roundup(size, alignment):
-            return (size + alignment - 1) // alignment * alignment
-
-        for o in objs:
-            for seg in o.segments:
-                if seg.code_letter not in segment_groups:
-                    print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
-                    sys.exit(1)
-                if seg.name not in segment_groups[seg.code_letter]:
-                    segment_groups[seg.code_letter][seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
-                seg.assigned_address = segment_groups[seg.code_letter][seg.name].size # Assign offset in the merged segment for now
-                segment_groups[seg.code_letter][seg.name].size += roundup(seg.size, WORD_ALIGNMENT)
-
-        text_group_start = TEXT_START
-        text_group_size = 0
-        for seg in segment_groups['RP'].values():
-            seg.start = text_group_start + text_group_size
-            text_group_size += roundup(seg.size, WORD_ALIGNMENT)
-        data_group_start = roundup(text_group_start + text_group_size, PAGE_ALIGNMENT)
-        data_group_size = 0 
-        for seg in segment_groups['RWP'].values():
-            seg.start = data_group_start + data_group_size
-            data_group_size += roundup(seg.size, WORD_ALIGNMENT)
-        bss_group_start = roundup(data_group_start + data_group_size, WORD_ALIGNMENT)
-        bss_group_size = 0
-        if COMMON:
-            bss_start = bss_group_start
-            bss_size = segment_groups['RW']['.bss'].size
-            common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
-            common_size = 0
-            for sym_name, sym in commons.items():
-                address = roundup(common_start + common_size, WORD_ALIGNMENT)
-                common_size = address + sym.value - common_start
-            bss_size = common_start + common_size - bss_start
-            segment_groups['RW']['.bss'].size = bss_size
-        for seg in segment_groups['RW'].values():
-            seg.start = bss_group_start + bss_group_size
-            bss_group_size += roundup(seg.size, WORD_ALIGNMENT)
-
-        # Now assign addresses to all segments based on the group they belong to
-        for o in objs:
-            for seg in o.segments:
-                seg.assigned_address += segment_groups[seg.code_letter][seg.name].start # Add the group start address to get the final assigned address
-        out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter) for group in segment_groups.values() for seg in group.values()]
-        out_symbols = [sym for o in objs for sym in o.symbols]
-        out_relocations = [rel for o in objs for rel in o.relocations]
-        out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
+    if len(objs) > 1:
+        out_segments = allocate_storage(objs)
     else:
         out_segments = objs[0].segments
-        out_symbols = objs[0].symbols
-        out_relocations = objs[0].relocations
-        out_data = objs[0].data
+    out_symbols = [sym for o in objs for sym in o.symbols]
+    out_relocations = [rel for o in objs for rel in o.relocations]
+    out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
