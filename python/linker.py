@@ -190,18 +190,7 @@ def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_
 def roundup(size, alignment):
     return (size + alignment - 1) // alignment * alignment
 
-def allocate_storage(objs, enable_common_block):
-    # Find all common blocks
-    commons = {}
-    for o in objs:
-        for sym in o.symbols:
-            if sym.sym_type == 'U' and sym.value > 0:
-                if sym.name not in commons:
-                    commons[sym.name] = sym
-                elif sym.value > commons[sym.name].value:
-                    commons[sym.name] = sym
-    dprint(f"Common symbols: {commons}")
-
+def allocate_storage(objs, commons):
     # start text segment at 0x1000 to leave some space for the header
     TEXT_START = 0x1000
     VALID_SEGMENT_TYPES = {'RP', 'RWP', 'RW'}
@@ -256,16 +245,15 @@ def allocate_storage(objs, enable_common_block):
     bss_group_size = 0
     bss_group = []
     # Allocate space for common blocks at the end of the bss segment
-    if enable_common_block:
-        bss_start = bss_group_start
-        bss_size = groups['.bss'].size
-        common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
-        common_size = 0
-        for sym_name, sym in commons.items():
-            address = roundup(common_start + common_size, WORD_ALIGNMENT)
-            common_size = address + sym.value - common_start
-        bss_size = common_start + common_size - bss_start
-        groups['.bss'].size = bss_size
+    bss_start = bss_group_start
+    bss_size = groups['.bss'].size
+    common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
+    common_size = 0
+    for sym_name, sym in commons.items():
+        address = roundup(common_start + common_size, WORD_ALIGNMENT)
+        common_size = address + sym.value - common_start
+    bss_size = common_start + common_size - bss_start
+    groups['.bss'].size = bss_size
     for seg in groups.values():
         if seg.code_letter != 'RW':
             continue
@@ -278,6 +266,51 @@ def allocate_storage(objs, enable_common_block):
         for seg in o.segments:
             seg.assigned_address = seg.assigned_offset + groups[seg.name].start # Add the group start address to get the final assigned address
     return [Segment(seg.name, seg.start, seg.size, seg.code_letter) for seg in (text_group + data_group + bss_group)]
+
+class GlobalSymbol:
+    def __init__(self, name, is_defined, is_common, obj):
+        self.name = name
+        self.is_defined = is_defined
+        self.is_common = is_common
+        self.obj = obj
+
+    def __repr__(self):
+        return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
+
+def resolve_symbol_names(objs):
+    global_symbol_table = {}
+    # Find all common blocks
+    commons = {}
+
+    for o in objs:
+        for sym in o.symbols:
+            is_common = sym.sym_type == 'U' and sym.value > 0
+            if is_common:
+                if sym.name not in commons:
+                    commons[sym.name] = sym
+                elif sym.value > commons[sym.name].value:
+                    commons[sym.name] = sym
+            is_defined = sym.sym_type == 'D'
+            if sym.name not in global_symbol_table:
+                global_symbol_table[sym.name] = GlobalSymbol(sym.name, is_defined, is_common, o)
+                continue
+            if not is_defined:
+                continue
+            existing_sym  = global_symbol_table[sym.name]
+            if is_common ^ existing_sym.is_common:
+                print(f"Error: symbol '{sym.name}' has inconsistent definitions: one is common and the other is not", file=sys.stderr)
+                sys.exit(1)
+            if existing_sym.is_defined:
+                print(f"Error: symbol '{sym.name}' is multiply defined in files '{existing_sym.obj.filename}' and '{o.filename}'", file=sys.stderr)
+                sys.exit(1)
+            existing_sym.is_defined = True
+            existing_sym.obj = o
+    for sym in global_symbol_table.values():
+        if not sym.is_defined and not sym.is_common:
+            print(f"Error: symbol '{sym.name}' is undefined but referenced in file '{sym.obj.filename}'", file=sys.stderr)
+            sys.exit(1)
+    print(f"Global symbol table: {global_symbol_table}")
+    return global_symbol_table, commons
 
 def main():
     if len(sys.argv) < 2:
@@ -311,11 +344,15 @@ def main():
 
     objs = parse_objects(input_files, SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA)
 
+    # Resolve symbol names
+    symbol_table, commons = resolve_symbol_names(objs)
+
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
-        out_segments = allocate_storage(objs, args.common)
+        out_segments = allocate_storage(objs, commons if args.common else {})
     else:
         out_segments = objs[0].segments
+
     out_symbols = [sym for o in objs for sym in o.symbols]
     out_relocations = [rel for o in objs for rel in o.relocations]
     out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
