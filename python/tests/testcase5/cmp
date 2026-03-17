@@ -12,3 +12,4 @@ main 0 1 D # .text
 schrod 0 1 D # .text
 harbor 300 3 D # .data
 wiggleroom 0 5 D # this needs to be common block in .bss segment
+mug 0 1 D

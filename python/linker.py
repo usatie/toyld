@@ -273,6 +273,11 @@ class GlobalSymbol:
         self.is_defined = is_defined
         self.is_common = is_common
         self.obj = obj
+        self.value = 0 # TODO: needs to be resolved later
+
+    def to_symbol(self):
+        SYM_ABSOLUTE = 0
+        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D' if self.is_defined else 'U')
 
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
@@ -312,6 +317,15 @@ def resolve_symbol_names(objs):
     print(f"Global symbol table: {global_symbol_table}")
     return global_symbol_table, commons
 
+def resolve_symbol_values(objs, symbol_table, out_segments):
+    for sym in symbol_table.values():
+        if sym.is_common:
+            # TODO
+            pass
+        elif sym.is_defined and sym.obj.symbols:
+            # TODO
+            pass
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -350,10 +364,13 @@ def main():
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
         out_segments = allocate_storage(objs, commons if args.common else {})
+        # Resolve symbol values
+        resolve_symbol_values(objs, symbol_table, out_segments)
+        out_symbols = [sym.to_symbol() for sym in symbol_table.values()]
     else:
         out_segments = objs[0].segments
+        out_symbols = [sym for o in objs for sym in o.symbols]
 
-    out_symbols = [sym for o in objs for sym in o.symbols]
     out_relocations = [rel for o in objs for rel in o.relocations]
     out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
 
