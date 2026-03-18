@@ -6,9 +6,6 @@ from object import parse_objects
 import storage
 import symbol
 
-# All numbers in the input file are in hex, so we need to convert them from hex to int when parsing
-
-
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
