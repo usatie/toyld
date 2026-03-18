@@ -10,6 +10,29 @@ def create_directory_library(objs, output_dir):
         print(f"Output directory '{output_dir}' already exists. Please remove it or choose a different name.", file=sys.stderr)
         sys.exit(1)
     os.mkdir(output_dir)
+    # Global symbol table to track all symbols across input modules, mapping symbol name to the input file it came from (for error reporting)
+    gsymtab = {}
+    for o in objs:
+        # Copy input file in the output directory as a temp file to create hardlinks to each symbol in the output directory
+        input_file = o.filename
+        temp_file = os.path.join(output_dir, os.path.basename(input_file))
+        with open(input_file, 'rb') as infile, open(temp_file, 'wb') as outfile:
+            outfile.write(infile.read())
+        # Add hardlinks to each symbol in the output directory
+        for name, sym in o.symbols.items():
+            # Skip undefined symbols
+            if sym.sym_type != 'D':
+                continue
+            # Check for duplicate symbol names across input files
+            if name in gsymtab:
+                print(f"Error: Duplicate symbol '{name}' found in multiple input files: {o.filename} and {gsymtab[name]}. Cannot create library.", file=sys.stderr)
+                sys.exit(1)
+            gsymtab[name] = o.filename
+            link_path = os.path.join(output_dir, name)
+            os.link(temp_file, link_path)
+
+        # Delete the output file (the hardlink will still exist in the output directory)
+        os.remove(temp_file)
 
 def main():
     if len(sys.argv) < 2:
