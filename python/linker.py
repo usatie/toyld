@@ -9,7 +9,7 @@ dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBU
 
 # All numbers in the input file are in hex, so we need to convert them from hex to int when parsing
 
-class ObjectFileData:
+class Object:
     def __init__(self, filename, num_segments, num_symbols, num_relocations):
         self.filename = filename
         self.num_segments = num_segments
@@ -21,7 +21,7 @@ class ObjectFileData:
         self.data = []
 
     def __repr__(self):
-        return f"ObjectFileData(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
+        return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
 
 class Segment:
     def __init__(self, name, start, size, code_letter):
@@ -168,7 +168,7 @@ def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_
                 # num are written in hex, so we need to convert them from hex to int
                 num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
                 dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-                obj = ObjectFileData(input_file, num_segments, num_symbols, num_relocations)
+                obj = Object(input_file, num_segments, num_symbols, num_relocations)
             except ValueError:
                 print("Invalid header format: expected three integers", file=sys.stderr)
                 sys.exit(1)
