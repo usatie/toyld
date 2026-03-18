@@ -1,0 +1,6 @@
+LINK
+1 2 0
+.text 0 4 RP
+bar 0 1 D
+foo 0 0 U
+00000000

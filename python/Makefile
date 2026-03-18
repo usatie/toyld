@@ -6,7 +6,10 @@ RED=\033[0;31m
 RESET=\033[0m
 
 .PHONY: all
-all: test1 test2 test3 test4 test5
+LIBRARIAN_NAME=librarian.py
+LIB_CMD=./$(LIBRARIAN_NAME)
+
+all: test1 test2 test3 test4 test5 test6
 
 test1: TEST_DIR=tests/testcase1
 test1: clean
@@ -45,6 +48,16 @@ test5: clean
 		&& echo "$(GREEN)Test 5 passed$(RESET)" || echo "$(RED)Test 5 failed$(RESET)"
 
 
+test6: TEST_DIR=tests/testcase6
+test6: clean
+	# Test 6 for project 6.1: Create directory format library
+	$(LIB_CMD) --output lib.lk $(TEST_DIR)/foo.lk $(TEST_DIR)/bar.lk \
+		&& diff -r lib.lk $(TEST_DIR)/cmp \
+		&& [ $$(stat -f %i lib.lk/foo) -eq $$(stat -f %i lib.lk/helper) ] \
+		&& echo "$(GREEN)Test 6 passed$(RESET)" || echo "$(RED)Test 6 failed$(RESET)"
+
+
 .PHONY: clean
 clean:
 	rm -f newobj a.out.lk
+	rm -rf lib.lk
