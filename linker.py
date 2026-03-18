@@ -1,38 +1,31 @@
 #! /usr/bin/env python3
 
-import sys
+import argparse
 import os
+import sys
+
 from object import parse_objects
 import storage
 import symbol
 
-def main():
+
+def parse_args():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
         print(f"Usage: {file_name} <input_file>", file=sys.stderr)
         sys.exit(1)
 
     # parse cli args to populate SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA
-    import argparse
     parser = argparse.ArgumentParser(description='Simple linker that processes input files and produces an output file.')
     parser.add_argument('input_files', nargs='+', help='Input files to process')
     parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
     parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
     parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
     parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
-    args = parser.parse_args()
+    parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
+    return parser.parse_args()
 
-    SKIP_SYMBOLS = args.skip_symbols
-    SKIP_RELOCATIONS = args.skip_relocations
-    SKIP_DATA = args.skip_data
-    input_files = args.input_files
-
-    output_file = 'a.out.lk'
-
-    # Check if the output file already exists and remove it
-    if os.path.exists(output_file):
-        os.remove(output_file)
-
+def link_objects(input_files, use_common):
     objs = parse_objects(input_files)
 
     # Resolve symbol names
@@ -40,9 +33,9 @@ def main():
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
-        out_segments = storage.allocate(objs, commons if args.common else {})
+        out_segments = storage.allocate(objs, commons if use_common else {})
         # Resolve symbol values
-        symbol.resolve_values(objs, symbol_table, out_segments, commons if args.common else {})
+        symbol.resolve_values(objs, symbol_table, out_segments, commons if use_common else {})
         out_symbols = [sym.to_symbol() for sym in symbol_table.values()]
     else:
         out_segments = objs[0].segments
@@ -51,7 +44,26 @@ def main():
     out_relocations = [rel for o in objs for rel in o.relocations]
     out_data = '\n'.join(d.hex() for o in objs for d in o.data)  # combine data from all input files
 
-    with open(output_file, 'wb') as outfile:
+    return out_segments, out_symbols, out_relocations, out_data
+
+class WriteOptions:
+    def __init__(self, skip_symbols, skip_relocations, skip_data):
+        self.skip_symbols = skip_symbols
+        self.skip_relocations = skip_relocations
+        self.skip_data = skip_data
+
+def write_output(filename, link_results, options):
+
+    out_segments, out_symbols, out_relocations, out_data = link_results
+    SKIP_SYMBOLS = options.skip_symbols
+    SKIP_RELOCATIONS = options.skip_relocations
+    SKIP_DATA = options.skip_data
+
+    # Check if the output file already exists and remove it
+    if os.path.exists(filename):
+        os.remove(filename)
+
+    with open(filename, 'wb') as outfile:
         # Write the output file
         outfile.write(b'LINK\n')
         num_segments = len(out_segments)
@@ -74,6 +86,22 @@ def main():
         if not SKIP_DATA:
             outfile.write(out_data.encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
+
+
+def main():
+    args = parse_args()
+    results = link_objects(args.input_files, args.common)
+    write_output(
+        args.output,
+        results,
+        WriteOptions(
+            skip_symbols=args.skip_symbols,
+            skip_relocations=args.skip_relocations,
+            skip_data=args.skip_data,
+        ),
+    )
+
+
 
 if __name__ == '__main__':
     main()
