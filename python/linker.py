@@ -17,8 +17,8 @@ class Object:
         self.num_relocations = num_relocations
         self.segments = None
         self.symbols = None
-        self.relocations = []
-        self.data = []
+        self.relocations = None
+        self.data = None
 
     def __repr__(self):
         return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
@@ -148,7 +148,7 @@ def parse_data(f, num_data):
             sys.exit(1)
     return data
 
-def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_DATA=False):
+def parse_objects(input_files):
     objs = []
     for input_file in input_files:
         # Simply copy the input file to the output file
@@ -182,14 +182,12 @@ def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_
             dprint(f"Symbols: {obj.symbols}")
 
             # Read relocations
-            if not SKIP_RELOCATIONS:
-                obj.relocations = parse_relocations(infile, num_relocations)
+            obj.relocations = parse_relocations(infile, num_relocations)
 
             # Read data
-            if not SKIP_DATA:
-                # count all segments that have 'P': present in their code letter
-                num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
-                obj.data = parse_data(infile, num_data)
+            # count all segments that have 'P': present in their code letter
+            num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
+            obj.data = parse_data(infile, num_data)
         objs.append(obj)
     return objs
 
@@ -364,7 +362,7 @@ def main():
     if os.path.exists(output_file):
         os.remove(output_file)
 
-    objs = parse_objects(input_files, SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA)
+    objs = parse_objects(input_files)
 
     # Resolve symbol names
     symbol_table, commons = resolve_symbol_names(objs)
