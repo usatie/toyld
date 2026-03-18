@@ -28,7 +28,31 @@ LINK
 # Relocation entries:
 <loc> <seg_number> <ref> <type> [extra fields...]
 # Data section (hex string):
-<hex bytes>
+# The data for each segment is a single long hexadecimal string followed by a newline.
+# The same order as the segment entries, and there must be segment data for each segment that is identified as being present
+<data>
+...
+```
+
+e.g.
+```
+LINK
+2 2 1
+
+# segments
+.text 1000 100 RP
+.data 2000 80 RWP
+
+# symbols
+foo 10 1 D
+bar 20 2 U
+
+# relocations
+0 1 1 R_32
+
+# data
+0123456789abcdef...
+0123456789abcdef...
 ```
 
 **Segment flags:** `RP` (read/execute, present in file), `RWP` (read-write, present), `RW` (read-write, not in file — e.g., `.bss`)

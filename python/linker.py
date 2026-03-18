@@ -18,7 +18,7 @@ class ObjectFileData:
         self.segments = None
         self.symbols = None
         self.relocations = []
-        self.data = None
+        self.data = []
 
     def __repr__(self):
         return f"ObjectFileData(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
@@ -130,20 +130,23 @@ def parse_relocations(f, num_relocations):
             sys.exit(1)
     return relocations
 
-def parse_data(f):
-    line = read_next_line(f)
-    # The line is a hex string representing the data section, so we need to convert it to bytes
-    if line is None:
-        print(f"Unexpected end of file while reading data section", file=sys.stderr)
-        sys.exit(1)
-    try:
-        data = bytes.fromhex(line.decode())
-        dprint(f"Data section length: {len(data)} bytes")
-        dprint(f"Data section (hex): {data.hex()}")
-        return data
-    except ValueError:
-        print(f"Invalid data format: expected hex string, got: {line}", file=sys.stderr)
-        sys.exit(1)
+def parse_data(f, num_data):
+    data = []
+    for i in range(num_data):
+        line = read_next_line(f)
+        # The line is a hex string representing the data section, so we need to convert it to bytes
+        if line is None:
+            print(f"Unexpected end of file while reading data section", file=sys.stderr)
+            sys.exit(1)
+        try:
+            datum = bytes.fromhex(line.decode())
+            dprint(f"Data section length: {len(datum)} bytes")
+            dprint(f"Data section (hex): {datum.hex()}")
+            data.append(datum)
+        except ValueError:
+            print(f"Invalid data format: expected hex string, got: {line}", file=sys.stderr)
+            sys.exit(1)
+    return data
 
 def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_DATA=False):
     objs = []
@@ -184,7 +187,9 @@ def parse_objects(input_files, SKIP_SYMBOLS=False, SKIP_RELOCATIONS=False, SKIP_
 
             # Read data
             if not SKIP_DATA:
-                obj.data = parse_data(infile)
+                # count all segments that have 'P': present in their code letter
+                num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
+                obj.data = parse_data(infile, num_data)
         objs.append(obj)
     return objs
 
@@ -375,7 +380,7 @@ def main():
         out_symbols = [sym for o in objs for sym in o.symbols.values()]
 
     out_relocations = [rel for o in objs for rel in o.relocations]
-    out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
+    out_data = '\n'.join(d.hex() for o in objs for d in o.data)  # combine data from all input files
 
     with open(output_file, 'wb') as outfile:
         # Write the output file
@@ -393,9 +398,12 @@ def main():
         if not SKIP_RELOCATIONS:
             for rel in out_relocations:
                 extra_str = ' '.join(rel.extra_fields)
-                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type} {extra_str}\n".encode())
+                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type}".encode())
+                if extra_str:
+                    outfile.write(f" {extra_str}".encode())
+                outfile.write(b'\n')
         if not SKIP_DATA:
-            outfile.write(out_data.hex().encode())
+            outfile.write(out_data.encode())
             outfile.write(b'\n') # newline to indicate the end of the data section
 
 if __name__ == '__main__':
