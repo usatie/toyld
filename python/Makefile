@@ -37,10 +37,10 @@ test4: clean
 		&& diff -U 1 a.out.lk $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 4 passed$(RESET)" || echo "$(RED)Test 4 failed$(RESET)"
 
-test4: TEST_DIR=tests/testcase5
-test4: clean
+test5: TEST_DIR=tests/testcase5
+test5: clean
 	# Test5 for project 5.1: Symbol name resolution
-	$(LINK_CMD) $(TEST_DIR)/{main.lk,california.lk,massachusetts.lk,newyork.lk} --skip-relocations --skip-data --common \
+	$(LINK_CMD) $(TEST_DIR)/{main.lk,calif.lk} --skip-relocations --skip-data --common \
 		&& diff -U 1 a.out.lk $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 5 passed$(RESET)" || echo "$(RED)Test 5 failed$(RESET)"
 

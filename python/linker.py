@@ -15,8 +15,8 @@ class ObjectFileData:
         self.num_segments = num_segments
         self.num_symbols = num_symbols
         self.num_relocations = num_relocations
-        self.segments = []
-        self.symbols = []
+        self.segments = None
+        self.symbols = None
         self.relocations = []
         self.data = None
 
@@ -38,11 +38,12 @@ class Segment:
             return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, assigned_address={self.assigned_address:x})"
 
 class Symbol:
-    def __init__(self, name, value, seg_number, sym_type):
+    def __init__(self, name, value, seg_number, sym_type, number):
         self.name = name
         self.value = value
         self.seg_number = seg_number
         self.sym_type = sym_type
+        self.number = number
 
     def __repr__(self):
         return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type})"
@@ -88,7 +89,7 @@ def parse_segments(f, num_segments):
     return segments
 
 def parse_symbols(f, num_symbols):
-    symbols = []
+    symbols = {}
     for i in range(num_symbols):
         line = read_next_line(f)
         if line is None:
@@ -98,8 +99,8 @@ def parse_symbols(f, num_symbols):
             name, value_str, seg_number_str, sym_type = line.split()
             value = int(value_str, 16)
             seg_number = int(seg_number_str, 16)
-            sym = Symbol(name.decode(), value, seg_number, sym_type.decode())
-            symbols.append(sym)
+            sym = Symbol(name.decode(), value, seg_number, sym_type.decode(), i + 1) # symbols are numbered starting from 1
+            symbols[sym.name] = sym
             dprint(f"Symbol {i}: name={sym.name}, value={sym.value}, seg_number={sym.seg_number}, sym_type={sym.sym_type}")
         except ValueError:
             print(f"Invalid symbol format on line: {line}", file=sys.stderr)
@@ -277,7 +278,7 @@ class GlobalSymbol:
 
     def to_symbol(self):
         SYM_ABSOLUTE = 0
-        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D' if self.is_defined else 'U')
+        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D' if self.is_defined else 'U', 0)
 
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
@@ -288,7 +289,7 @@ def resolve_symbol_names(objs):
     commons = {}
 
     for o in objs:
-        for sym in o.symbols:
+        for sym in o.symbols.values():
             is_common = sym.sym_type == 'U' and sym.value > 0
             if is_common:
                 if sym.name not in commons:
@@ -314,7 +315,6 @@ def resolve_symbol_names(objs):
         if not sym.is_defined and not sym.is_common:
             print(f"Error: symbol '{sym.name}' is undefined but referenced in file '{sym.obj.filename}'", file=sys.stderr)
             sys.exit(1)
-    print(f"Global symbol table: {global_symbol_table}")
     return global_symbol_table, commons
 
 def resolve_symbol_values(objs, symbol_table, out_segments):
@@ -322,9 +322,10 @@ def resolve_symbol_values(objs, symbol_table, out_segments):
         if sym.is_common:
             # TODO
             pass
-        elif sym.is_defined and sym.obj.symbols:
-            # TODO
-            pass
+        elif sym.is_defined:
+            local_sym = sym.obj.symbols[sym.name]
+            seg = sym.obj.segments[local_sym.seg_number - 1]
+            sym.value = seg.assigned_address + local_sym.value
 
 def main():
     if len(sys.argv) < 2:
@@ -369,7 +370,7 @@ def main():
         out_symbols = [sym.to_symbol() for sym in symbol_table.values()]
     else:
         out_segments = objs[0].segments
-        out_symbols = [sym for o in objs for sym in o.symbols]
+        out_symbols = [sym for o in objs for sym in o.symbols.values()]
 
     out_relocations = [rel for o in objs for rel in o.relocations]
     out_data = b''.join(o.data for o in objs if o.data is not None)  # combine data from all input files
