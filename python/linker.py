@@ -253,6 +253,7 @@ def allocate_storage(objs, commons):
     for sym_name, sym in commons.items():
         address = roundup(common_start + common_size, WORD_ALIGNMENT)
         common_size = address + sym.value - common_start
+        sym.assigned_address = address
     bss_size = common_start + common_size - bss_start
     groups['.bss'].size = bss_size
     for seg in groups.values():
@@ -285,17 +286,18 @@ class GlobalSymbol:
 
 def resolve_symbol_names(objs):
     global_symbol_table = {}
-    # Find all common blocks
     commons = {}
 
     for o in objs:
         for sym in o.symbols.values():
+            # Find common blocks and keep track of the largest common block for each symbol name
             is_common = sym.sym_type == 'U' and sym.value > 0
             if is_common:
                 if sym.name not in commons:
                     commons[sym.name] = sym
                 elif sym.value > commons[sym.name].value:
                     commons[sym.name] = sym
+            # Find global symbols and check for multiply defined symbols and inconsistent definitions
             is_defined = sym.sym_type == 'D'
             if sym.name not in global_symbol_table:
                 global_symbol_table[sym.name] = GlobalSymbol(sym.name, is_defined, is_common, o)
@@ -317,11 +319,11 @@ def resolve_symbol_names(objs):
             sys.exit(1)
     return global_symbol_table, commons
 
-def resolve_symbol_values(objs, symbol_table, out_segments):
+def resolve_symbol_values(objs, symbol_table, out_segments, commons):
     for sym in symbol_table.values():
-        if sym.is_common:
-            # TODO
-            pass
+        if sym.is_common and sym.name in commons:
+            common_sym = commons[sym.name]
+            sym.value = common_sym.assigned_address
         elif sym.is_defined:
             local_sym = sym.obj.symbols[sym.name]
             seg = sym.obj.segments[local_sym.seg_number - 1]
@@ -366,7 +368,7 @@ def main():
     if len(objs) > 1:
         out_segments = allocate_storage(objs, commons if args.common else {})
         # Resolve symbol values
-        resolve_symbol_values(objs, symbol_table, out_segments)
+        resolve_symbol_values(objs, symbol_table, out_segments, commons if args.common else {})
         out_symbols = [sym.to_symbol() for sym in symbol_table.values()]
     else:
         out_segments = objs[0].segments

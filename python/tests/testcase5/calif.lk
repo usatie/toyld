@@ -1,5 +1,5 @@
 LINK
-3 4 0
+3 5 0
 # segments: name base length flags
 .text 0    920 RP
 .data 1000 217 RWP
@@ -10,3 +10,4 @@ losangeles 42 2 D
 vc 0 0 U
 # common block
 usa 200 0 U
+president 128 0 U

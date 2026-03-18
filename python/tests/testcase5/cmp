@@ -1,10 +1,11 @@
 LINK
-3 5 0
+3 6 0
 .text 1000 1938 RP
 .data 3000 538 RWP
-.bss 3538 350 RW
+.bss 3538 478 RW
 main 1000 0 D
 vc 1022 0 D
 sanfrancisco 2028 0 D
-usa 0 0 U
+president 3688 0 U
+usa 37b0 0 U
 losangeles 3362 0 D

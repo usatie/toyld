@@ -1,5 +1,5 @@
 LINK
-3 4 0
+3 5 0
 # segments: name base length flags
 # this uses the common convention that text starts at zero,
 # data starts on the next page after text, bss starts at the
@@ -14,4 +14,5 @@ main 0 1 D
 vc 22 1 D
 sanfrancisco 0 0 U
 # common
+president 100 0 U
 usa 100 0 U
