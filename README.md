@@ -1,18 +1,19 @@
-# Linkers and Loaders — Project Implementation
+# toyld — Toy Linker & Librarian
 
-A Python implementation of the linker projects from *Linkers and Loaders* by John R. Levine.
+A toy linker and librarian built in Python, implementing projects from *Linkers and Loaders* by John R. Levine.
 
 ## Overview
 
-This project implements a linker that processes a simple text-based object file format (`.lk`) defined in Chapter 3 of the book. The linker is built incrementally across chapters:
+This project implements a linker and librarian that process a simple text-based object file format (`.lk`) defined in Chapter 3 of the book. Both tools are built incrementally across chapters:
 
-| Project | Chapter | Feature |
-|---------|---------|---------|
-| 3.1 | Ch. 3 | Parse and re-emit a single object file |
-| 4.1 | Ch. 4 | UNIX-style storage allocation (`.text`, `.data`, `.bss`) |
-| 4.2 | Ch. 4 | Common block resolution |
-| 4.3 | Ch. 4 | Arbitrary segment support |
-| 5.1 | Ch. 5 | Symbol name and value resolution |
+| Project | Chapter | Tool | Feature |
+|---------|---------|------|---------|
+| 3.1 | Ch. 3 | linker | Parse and re-emit a single object file |
+| 4.1 | Ch. 4 | linker | UNIX-style storage allocation (`.text`, `.data`, `.bss`) |
+| 4.2 | Ch. 4 | linker | Common block resolution |
+| 4.3 | Ch. 4 | linker | Arbitrary segment support |
+| 5.1 | Ch. 5 | linker | Symbol name and value resolution |
+| 6.1 | Ch. 6 | librarian | Directory-format library creation |
 
 ## Object File Format (`.lk`)
 
@@ -63,6 +64,8 @@ bar 20 2 U
 
 ## Usage
 
+### Linker
+
 ```sh
 ./linker.py <input_files...> [options]
 ```
@@ -79,6 +82,21 @@ bar 20 2 U
 
 Output is always written to `a.out.lk`.
 
+### Librarian
+
+```sh
+./librarian.py <input_files...> [--output <output_dir>] [--format directory]
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--output`, `-o` | Output library name (default: `lib.lk`) |
+| `--format`, `-f` | Library format: `directory` (default) |
+
+Creates a **directory-format library**: each defined symbol in the input object files becomes a hard link inside the output directory, pointing to the object file that defines it. This allows a linker to load only the modules needed to resolve undefined symbols.
+
 ## Running Tests
 
 ```sh
@@ -88,6 +106,7 @@ make test2
 make test3
 make test4
 make test5
+make test6
 ```
 
 ## Test Cases
@@ -129,6 +148,13 @@ Links two object files and resolves both symbol names and values. Each global sy
 ```sh
 ./linker.py tests/testcase5/{main,calif}.lk \
     --skip-relocations --skip-data --common
+```
+
+### Test 6 — Directory-format library (Project 6.1)
+Creates a directory-format library from two object files. Each defined symbol becomes a hard link inside the output directory pointing to the object file that defines it.
+
+```sh
+./librarian.py --output lib.lk tests/testcase6/foo.lk tests/testcase6/bar.lk
 ```
 
 ## Storage Allocation Strategy
