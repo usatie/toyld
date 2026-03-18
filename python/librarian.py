@@ -4,6 +4,13 @@ import sys
 import os
 from object import parse_objects
 
+def create_directory_library(objs, output_dir):
+    # Create output directory
+    if os.path.exists(output_dir):
+        print(f"Output directory '{output_dir}' already exists. Please remove it or choose a different name.", file=sys.stderr)
+        sys.exit(1)
+    os.mkdir(output_dir)
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
@@ -16,6 +23,14 @@ def main():
     parser.add_argument('--output', '-o', help='Output file name (default: lib.lk)', default='lib.lk')
     parser.add_argument('--format', '-f', help='Output format (default: directory)', choices=['directory', 'file'], default='directory')
     args = parser.parse_args()
+
+    objs = parse_objects(args.input_files)
+
+    if args.format == 'directory':
+        create_directory_library(objs, args.output)
+    else:
+        print(f"Unsupported output format: {args.format}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
