@@ -1,0 +1,9 @@
+LINK
+1 2 0
+# segments
+.text 0 10 RP
+# symbols
+format_str 0 1 D
+strlen 0 0 U
+# data
+00000000000000000000000000000000

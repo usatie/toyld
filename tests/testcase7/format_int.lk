@@ -1,0 +1,8 @@
+LINK
+1 1 0
+# segments
+.text 0 10 RP
+# symbols: in libfmt but never referenced — should not be pulled in by the linker
+format_int 0 1 D
+# data
+00000000000000000000000000000000

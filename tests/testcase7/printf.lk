@@ -1,0 +1,11 @@
+LINK
+1 4 0
+# segments
+.text 0 10 RP
+# symbols
+printf 0 1 D
+format_str 0 0 U
+write 0 0 U
+errno 0 0 U
+# data
+00000000000000000000000000000000

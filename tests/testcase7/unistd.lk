@@ -1,0 +1,9 @@
+LINK
+1 2 0
+# segments
+.text 0 10 RP
+# symbols: write at offset 0, read at offset 8
+write 0 1 D
+read 8 1 D
+# data
+00000000000000000000000000000000

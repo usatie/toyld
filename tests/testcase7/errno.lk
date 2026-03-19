@@ -1,0 +1,7 @@
+LINK
+1 1 0
+# segments
+.bss 0 4 RW
+# symbols
+errno 0 1 D
+# no data (bss is not present in file)

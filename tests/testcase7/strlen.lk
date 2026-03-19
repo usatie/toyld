@@ -1,0 +1,8 @@
+LINK
+1 1 0
+# segments
+.text 0 10 RP
+# symbols: no external dependencies
+strlen 0 1 D
+# data
+00000000000000000000000000000000
