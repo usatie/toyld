@@ -38,9 +38,35 @@ def create_directory_library(objs, output_dir):
         os.remove(temp_file)
 
 def create_file_library(objs, output_file):
-    print("Not implemented yet: creating a single file library is not supported in this version.", file=sys.stderr)
-    sys.exit(1)
+    # Library Header `LIBRARY <nmods> <diroff>`
+    num_files = len(objs)
+    tmp_dir_offset = 0x10 + sum(os.path.getsize(o.filename) for o in objs) # this is temporary
+    header = f"LIBRARY {num_files:x} {tmp_dir_offset:x}\n".encode()
 
+    # object file contents (concatenated to skip comments and whitespace in the input files)
+    contents = b''
+    for o in objs:
+        contents += o.get_binary()
+    # recalculate the directory offset based on the actual header and contents size
+    dir_offset = len(header) + len(contents)
+    while dir_offset != tmp_dir_offset:
+        tmp_dir_offset = dir_offset
+        header = f"LIBRARY {num_files:x} {tmp_dir_offset:x}\n".encode()
+        dir_offset = len(header) + len(contents)
+
+    # Directory entries (one per symbol)
+    dir_entries = b''
+    mod_offset = len(header)
+    for o in objs:
+        mod_size = len(o.get_binary())
+        symbols_str = ' '.join(name for name, sym in o.symbols.items() if sym.sym_type == 'D' or (sym.sym_type == 'U' and sym.value > 0))
+        dir_entries += f"{mod_offset:x} {mod_size:x} {symbols_str}\n".encode()
+        mod_offset += mod_size
+
+    with open(output_file, 'wb') as outfile:
+        outfile.write(header)
+        outfile.write(contents)
+        outfile.write(dir_entries)
 
 def main():
     if len(sys.argv) < 2:

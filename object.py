@@ -14,6 +14,11 @@ class Object:
         self.relocations = None
         self.data = None
 
+    def get_binary(self):
+        # TODO: Create binary representation of the object from the segments, symbols, relocations, and data.
+        with open(self.filename, 'rb') as f:
+            return f.read()
+
     def __repr__(self):
         return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
 
