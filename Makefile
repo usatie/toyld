@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -93,6 +93,23 @@ test8:
 		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
 		&& diff -U 1 $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 8 passed$(RESET)" || echo "$(RED)Test 8 failed$(RESET)"
+
+test9: SRC_DIR=tests/testcase7
+test9: CMP_DIR=tests/testcase9
+test9:
+	# Test 9 for project 6.4: Link main.lk against five file-format libraries.
+	# Same dependency graph as test 7, but libraries are single-file archives
+	# instead of directories. The linker must detect LIBRARY header and seek to
+	# each module's offset to load it on demand.
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libprintf.lk $(SRC_DIR)/{printf,sprintf}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libfmt.lk $(SRC_DIR)/{format_str,format_int}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libstr.lk $(SRC_DIR)/{strlen,strchr}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libunistd.lk $(SRC_DIR)/unistd.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/liberrno.lk $(SRC_DIR)/{errno,strerror}.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
+		&& echo "$(GREEN)Test 9 passed$(RESET)" || echo "$(RED)Test 9 failed$(RESET)"
 
 .PHONY: clean
 clean:
