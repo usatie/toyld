@@ -1,0 +1,6 @@
+LINK
+1 2 0
+.text 0 4 RP
+foo 0 1 D
+helper 2 1 D
+00000000

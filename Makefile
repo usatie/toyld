@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7
+all: test1 test2 test3 test4 test5 test6 test7 test8
 
 test1: TEST_DIR=tests/testcase1
 test1: clean
@@ -85,6 +85,14 @@ test7: clean
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 7 passed$(RESET)" || echo "$(RED)Test 7 failed$(RESET)"
+
+test8: TEST_DIR=tests/testcase8
+test8: clean
+	# Test 8 for project 6.3: Create file format library
+	mkdir -p $(BUILD_DIR) \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
+		&& diff -U 1 $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 8 passed$(RESET)" || echo "$(RED)Test 8 failed$(RESET)"
 
 .PHONY: clean
 clean:
