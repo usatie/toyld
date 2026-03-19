@@ -136,8 +136,10 @@ def resolve_names(objs, libsymtab):
             # load the library module and add it to the list of objects to visit
             mod = search_module(gsym.name, libsymtab)
             dprint(f"Resolving symbol '{gsym.name}' from library file '{libsymtab[gsym.name]}'")
-            lib_filename = mod.filename
-            lib_obj = parse_object(lib_filename)
+            if mod.format == 'dir':
+                lib_obj = parse_object(mod.filename)
+            elif mod.format == 'file':
+                lib_obj = parse_object(mod.filename, offset=mod.offset, size=mod.size)
             to_visit.append(lib_obj)
             objs.append(lib_obj)
     return gsymtab
