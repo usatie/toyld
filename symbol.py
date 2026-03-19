@@ -9,14 +9,25 @@ dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBU
 class GlobalSymbol:
     def __init__(self, lsym, obj):
         self.name = lsym.name
-        self.is_defined = lsym.sym_type == 'D'
-        self.is_common = lsym.sym_type == 'U' and lsym.value > 0
         self.obj = obj
+        self.lsym = lsym
         self.value = lsym.value
+
+    @property
+    def is_defined(self):
+        return self.lsym.sym_type == 'D'
+
+    @property
+    def is_common(self):
+        return self.lsym.sym_type == 'U' and self.lsym.value > 0
+
+    @property
+    def is_undefined(self):
+        return self.lsym.sym_type == 'U' and self.lsym.value == 0
 
     def to_symbol(self):
         SYM_ABSOLUTE = 0
-        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D' if self.is_defined else 'U', 0)
+        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D', 0)
 
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, is_common={self.is_common}, obj={self.obj.filename}, value={self.value})"
@@ -92,15 +103,16 @@ def resolve_names(objs, libsymtab):
                     print(f"Error: symbol '{lsym.name}' is multiply defined in files '{existing_sym.obj.filename}' and '{o.filename}'", file=sys.stderr)
                     sys.exit(1)
                 # Find common blocks and keep track of the largest common block for each symbol name
-                if is_common and lsym.value > gsymtab[lsym.name].value:
-                    gsymtab[lsym.name].value = lsym.value
+                if is_common and lsym.value > existing_sym.value:
+                    existing_sym.value = lsym.value
                 # Skip undefined symbols
-                if not is_defined:
+                elif not is_defined:
                     continue
-                # Find global symbols and check for multiply defined symbols and inconsistent definitions
-                dprint(f"Symbol '{lsym.name}' is resolved to file '{o.filename}'")
-                existing_sym.is_defined = True
-                existing_sym.obj = o
+                # Defined symbols
+                else:
+                    dprint(f"Symbol '{lsym.name}' is resolved to file '{o.filename}'")
+                    existing_sym.lsym = lsym
+                    existing_sym.obj = o
         dprint("Search for undefined symbols in global symbol table...")
         undefined_symbols = [sym for sym in gsymtab.values() if not sym.is_defined and not sym.is_common]
         for sym in undefined_symbols:
