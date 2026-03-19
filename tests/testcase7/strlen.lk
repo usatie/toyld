@@ -1,8 +1,9 @@
 LINK
-1 1 0
+1 2 0
 # segments
 .text 0 10 RP
-# symbols: no external dependencies
+# symbols: strlen at offset 0, strnlen at offset 8
 strlen 0 1 D
+strnlen 8 1 D
 # data
 00000000000000000000000000000000

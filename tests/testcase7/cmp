@@ -1,16 +1,21 @@
 LINK
-3 8 0
+3 d 0
 .text 1000 60 RP
 .data 2000 8 RWP
-.bss 2008 4 RW
+.bss 2008 8 RW
 main 1000 0 D
 printf 1010 0 D
+fprintf 1018 0 D
 sprintf 1020 0 D
 format_str 1030 0 D
 write 1040 0 D
 errno 2008 0 D
+snprintf 1028 0 D
 strlen 1050 0 D
+format_char 1038 0 D
 read 1048 0 D
+h_errno 200c 0 D
+strnlen 1058 0 D
 00000000000000000000000000000000
 0000000000000000
 00000000000000000000000000000000

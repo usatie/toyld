@@ -1,8 +1,9 @@
 LINK
-1 1 0
+1 2 0
 # segments
 .text 0 10 RP
-# symbols: in libfmt but never referenced — should not be pulled in by the linker
+# symbols: format_int at offset 0, format_uint at offset 8 — unused module
 format_int 0 1 D
+format_uint 8 1 D
 # data
 00000000000000000000000000000000

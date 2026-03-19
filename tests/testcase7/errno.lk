@@ -1,7 +1,8 @@
 LINK
-1 1 0
-# segments
-.bss 0 4 RW
+1 2 0
+# segments: errno at offset 0, h_errno at offset 4
+.bss 0 8 RW
 # symbols
 errno 0 1 D
+h_errno 4 1 D
 # no data (bss is not present in file)

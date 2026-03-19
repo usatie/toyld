@@ -1,8 +1,9 @@
 LINK
-1 1 0
+1 2 0
 # segments
 .text 0 10 RP
-# symbols: in libstr but never referenced — should not be pulled in by the linker
+# symbols: strchr at offset 0, strrchr at offset 8 — unused module
 strchr 0 1 D
+strrchr 8 1 D
 # data
 00000000000000000000000000000000

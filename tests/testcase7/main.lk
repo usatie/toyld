@@ -1,11 +1,12 @@
 LINK
-2 3 0
+2 4 0
 # segments
 .text 0 10 RP
 .data 0 8 RWP
 # symbols
 main 0 1 D
 printf 0 0 U
+fprintf 0 0 U
 sprintf 0 0 U
 # data
 00000000000000000000000000000000
