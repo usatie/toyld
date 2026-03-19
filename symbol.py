@@ -21,12 +21,40 @@ class GlobalSymbol:
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
 
-def collect_symbols(library_dirs):
-    symbols = {}
+def collect_symbols(library_dirs, library_files):
+    dirlib_symbols = {}
     for lib_dir in library_dirs:
         for filename in os.listdir(lib_dir):
-            symbols[filename] = os.path.join(lib_dir, filename)
-    return symbols
+            dirlib_symbols[filename] = os.path.join(lib_dir, filename)
+
+    filelib_symbols = {}
+    for file in library_files:
+        with open(file, 'r') as f:
+            line = f.readline()
+            magic, nmods, dir_offset = line.strip().split()
+            nmods = int(nmods, 16)
+            dir_offset = int(dir_offset, 16)
+            print(f"Reading library file '{file}' with {nmods} modules and directory offset {dir_offset}")
+            f.seek(dir_offset)
+            for i in range(nmods):
+                line = f.readline()
+                mod_offset, mod_size, *symbol_strs = line.strip().split()
+                mod_offset = int(mod_offset, 16)
+                mod_size = int(mod_size, 16)
+                print(f"Module {i}: offset={mod_offset} size={mod_size} symbols={symbol_strs}")
+                for sym in symbol_strs:
+                    if sym in filelib_symbols:
+                        print(f"Error: symbol '{sym}' is multiply defined in library files '{filelib_symbols[sym]}' and '{file}'", file=sys.stderr)
+                        sys.exit(1)
+                    elif sym in dirlib_symbols:
+                        print(f"Error: symbol '{sym}' is multiply defined in directory library '{dirlib_symbols[sym]}' and file library '{file}'", file=sys.stderr)
+                        sys.exit(1)
+                    filelib_symbols[sym] = (file, mod_offset, mod_size)
+    print(f"Collected {len(dirlib_symbols)} symbols from directory libraries and {len(filelib_symbols)} symbols from file libraries")
+    print(f"Directory library symbols: {dirlib_symbols}")
+    print(f"File library symbols: {filelib_symbols}")
+
+    return dirlib_symbols, filelib_symbols
 
 def resolve_names(objs, libsymtab):
     global_symbol_table = {}
