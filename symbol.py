@@ -25,7 +25,7 @@ class GlobalSymbol:
     def is_undefined(self):
         return self.lsym.sym_type == 'U' and self.lsym.value == 0
 
-    def to_symbol(self):
+    def to_local(self):
         SYM_ABSOLUTE = 0
         return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D', 0)
 

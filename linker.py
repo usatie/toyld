@@ -61,7 +61,7 @@ def link_objects(input_files, use_common):
         out_segments = storage.allocate(objs, gsymtab if use_common else {})
         # Resolve symbol values
         symbol.resolve_values(objs, gsymtab, out_segments)
-        out_symbols = {name:gsym.to_symbol() for name,gsym in gsymtab.items()}
+        out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
     else:
         out_segments = objs[0].segments
         out_symbols = objs[0].symbols
