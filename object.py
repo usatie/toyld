@@ -1,3 +1,5 @@
+import sys
+
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 

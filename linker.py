@@ -26,7 +26,12 @@ def parse_args():
     return parser.parse_args()
 
 def link_objects(input_files, use_common):
-    objs = parse_objects(input_files)
+    # Input files may contain libraries (directory format), so we need to exclude them
+    libraries = [f for f in input_files if os.path.isdir(f)]
+    print(f"Found libraries: {libraries}")
+    object_files = [f for f in input_files if os.path.isfile(f)]
+    print(f"Found object files: {object_files}")
+    objs = parse_objects(object_files)
 
     # Resolve symbol names
     symbol_table, commons = symbol.resolve_names(objs)

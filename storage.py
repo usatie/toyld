@@ -1,3 +1,5 @@
+import sys
+
 from object import Segment
 
 def roundup(size, alignment):

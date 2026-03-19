@@ -1,3 +1,5 @@
+import sys
+
 from object import Symbol
 
 class GlobalSymbol:
