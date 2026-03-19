@@ -27,14 +27,13 @@ def parse_args():
 
 def link_objects(input_files, use_common):
     # Input files may contain libraries (directory format), so we need to exclude them
-    libraries = [f for f in input_files if os.path.isdir(f)]
-    print(f"Found libraries: {libraries}")
+    library_dirs = [f for f in input_files if os.path.isdir(f)]
     object_files = [f for f in input_files if os.path.isfile(f)]
-    print(f"Found object files: {object_files}")
     objs = parse_objects(object_files)
+    libsymtab = symbol.collect_symbols(library_dirs)
 
     # Resolve symbol names
-    symbol_table, commons = symbol.resolve_names(objs)
+    symbol_table, commons = symbol.resolve_names(objs, libsymtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
