@@ -1,7 +1,7 @@
 import os
 import sys
 
-from object import Symbol, parse_objects
+from object import Symbol, parse_object
 
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
@@ -80,54 +80,66 @@ def collect_symbols(library_dirs, library_files):
 
     return symtab
 
+def _merge_symbol(lsym, o, gsymtab):
+    if lsym.name not in gsymtab:
+        gsymtab[lsym.name] = GlobalSymbol(lsym, o)
+        return
+
+    gsym = gsymtab[lsym.name]
+
+    # Consistency check
+    if lsym.is_common ^ gsym.is_common:
+        print(f"Error: symbol '{lsym.name}' has inconsistent definitions: "
+              f"one is common and the other is not", file=sys.stderr)
+        sys.exit(1)
+    if lsym.is_defined and gsym.is_defined:
+        print(f"Error: symbol '{lsym.name}' is multiply defined in files "
+              f"'{gsym.obj.filename}' and '{o.filename}'", file=sys.stderr)
+        sys.exit(1)
+
+    # common blocks: larger common block wins
+    if lsym.is_common:
+        if lsym.value > gsym.value:
+            gsym.value = lsym.value
+            gsym.lsym = lsym
+    # undefined symbols: skip
+    elif lsym.is_undefined:
+        pass
+    # defined symbols: resolve name to the file it is defined in
+    elif lsym.is_defined:
+        dprint(f"Symbol '{lsym.name}' is resolved to file '{o.filename}'")
+        gsym.lsym = lsym
+        gsym.obj = o
+
+def search_module(symbol_name, libsymtab):
+    if symbol_name not in libsymtab:
+        print(f"Error: symbol '{symbol_name}' is undefined but referenced in library files", file=sys.stderr)
+        sys.exit(1)
+    return libsymtab[symbol_name]
+
 def resolve_names(objs, libsymtab):
     gsymtab = {}
-
     to_visit = [o for o in objs]
 
-    while len(to_visit) > 0:
-        while len(to_visit) > 0:
-            o = to_visit.pop(0)
+    while to_visit:
+        current_batch = to_visit[:]
+        to_visit.clear()
+        for o in current_batch:
             for lsym in o.symbols.values():
-                if lsym.name not in gsymtab:
-                    gsymtab[lsym.name] = GlobalSymbol(lsym, o)
-                    continue
-                # Consistency check for symbol definitions
-                gsym = gsymtab[lsym.name]
-                if lsym.is_common ^ gsym.is_common:
-                    print(f"Error: symbol '{lsym.name}' has inconsistent definitions: one is common and the other is not", file=sys.stderr)
-                    sys.exit(1)
-                if lsym.is_defined and gsym.is_defined:
-                    print(f"Error: symbol '{lsym.name}' is multiply defined in files '{gsym.obj.filename}' and '{o.filename}'", file=sys.stderr)
-                    sys.exit(1)
-                # common blocks
-                if lsym.is_common:
-                    # larger common block wins
-                    if lsym.value > gsym.value:
-                        gsym.value = lsym.value
-                        gsym.lsym = lsym
-                # Skip undefined symbols
-                elif lsym.is_undefined:
-                    continue
-                # Defined symbols
-                elif lsym.is_defined:
-                    dprint(f"Symbol '{lsym.name}' is resolved to file '{o.filename}'")
-                    gsym.lsym = lsym
-                    gsym.obj = o
+                _merge_symbol(lsym, o, gsymtab)
+
         dprint("Search for undefined symbols in global symbol table...")
         undefined_symbols = [gsym for gsym in gsymtab.values() if gsym.is_undefined]
-        for gsym in undefined_symbols:
-            if gsym.name not in libsymtab:
-                print(f"Error: symbol '{gsym.name}' is undefined but referenced in file '{gsym.obj.filename}'", file=sys.stderr)
-                sys.exit(1)
-            # load the library object file and add it to the list of objects to visit
+        if undefined_symbols:
+            # we will resolve undefined symbols one at a time to avoid loading the same library module multiple times if it defines multiple symbols
+            gsym = undefined_symbols[0]
+            # load the library module and add it to the list of objects to visit
+            mod = search_module(gsym.name, libsymtab)
             dprint(f"Resolving symbol '{gsym.name}' from library file '{libsymtab[gsym.name]}'")
-            lib_filename = libsymtab[gsym.name].filename
-            lib_obj = parse_objects([lib_filename])[0]
+            lib_filename = mod.filename
+            lib_obj = parse_object(lib_filename)
             to_visit.append(lib_obj)
             objs.append(lib_obj)
-            # we will resolve the symbol now, so that we don't have to load the same library file multiple times
-            break
     return gsymtab
 
 def resolve_values(objs, gsymtab, out_segments):

@@ -186,45 +186,44 @@ def parse_data(f, num_data):
             sys.exit(1)
     return data
 
+def parse_object(input_file):
+    # Simply copy the input file to the output file
+    with open(input_file, 'rb') as infile:
+        dprint(f"Processing input file: {input_file}")
+        # Check magic number: 'LINK'
+        line = read_next_line(infile)
+        if line != b'LINK':
+            print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
+            print(f"Got: {line}", file=sys.stderr)
+            sys.exit(1)
+
+        # Read header: 'nsegs nsyms nrels'
+        line = read_next_line(infile)
+        try:
+            # num are written in hex, so we need to convert them from hex to int
+            num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
+            dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+            obj = Object(input_file, num_segments, num_symbols, num_relocations)
+        except ValueError:
+            print("Invalid header format: expected three integers", file=sys.stderr)
+            sys.exit(1)
+
+        # Read segments
+        obj.segments = parse_segments(infile, obj.num_segments)
+        dprint(f"Segments: {obj.segments}")
+
+        # Read symbols
+        obj.symbols = parse_symbols(infile, num_symbols)
+        dprint(f"Symbols: {obj.symbols}")
+
+        # Read relocations
+        obj.relocations = parse_relocations(infile, num_relocations)
+
+        # Read data
+        # count all segments that have 'P': present in their code letter
+        num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
+        obj.data = parse_data(infile, num_data)
+    return obj
+
 def parse_objects(input_files):
-    objs = []
-    for input_file in input_files:
-        # Simply copy the input file to the output file
-
-        with open(input_file, 'rb') as infile:
-            dprint(f"Processing input file: {input_file}")
-            # Check magic number: 'LINK'
-            line = read_next_line(infile)
-            if line != b'LINK':
-                print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
-                print(f"Got: {line}", file=sys.stderr)
-                sys.exit(1)
-
-            # Read header: 'nsegs nsyms nrels'
-            line = read_next_line(infile)
-            try:
-                # num are written in hex, so we need to convert them from hex to int
-                num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
-                dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-                obj = Object(input_file, num_segments, num_symbols, num_relocations)
-            except ValueError:
-                print("Invalid header format: expected three integers", file=sys.stderr)
-                sys.exit(1)
-
-            # Read segments
-            obj.segments = parse_segments(infile, obj.num_segments)
-            dprint(f"Segments: {obj.segments}")
-
-            # Read symbols
-            obj.symbols = parse_symbols(infile, num_symbols)
-            dprint(f"Symbols: {obj.symbols}")
-
-            # Read relocations
-            obj.relocations = parse_relocations(infile, num_relocations)
-
-            # Read data
-            # count all segments that have 'P': present in their code letter
-            num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
-            obj.data = parse_data(infile, num_data)
-        objs.append(obj)
-    return objs
+    return [parse_object(f) for f in input_files]
