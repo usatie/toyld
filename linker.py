@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import parse_objects
+from object import Object, parse_objects
 import storage
 import symbol
 
@@ -40,13 +40,13 @@ def link_objects(input_files, use_common):
         out_segments = storage.allocate(objs, commons if use_common else {})
         # Resolve symbol values
         symbol.resolve_values(objs, symbol_table, out_segments, commons if use_common else {})
-        out_symbols = [sym.to_symbol() for sym in symbol_table.values()]
+        out_symbols = {name:gsym.to_symbol() for name,gsym in symbol_table.items()}
     else:
         out_segments = objs[0].segments
-        out_symbols = [sym for o in objs for sym in o.symbols.values()]
+        out_symbols = objs[0].symbols
 
     out_relocations = [rel for o in objs for rel in o.relocations]
-    out_data = '\n'.join(d.hex() for o in objs for d in o.data)  # combine data from all input files
+    out_data = [d for o in objs for d in o.data]  # combine data from all input files
 
     return out_segments, out_symbols, out_relocations, out_data
 
@@ -60,35 +60,23 @@ def write_output(filename, link_results, options):
 
     out_segments, out_symbols, out_relocations, out_data = link_results
 
-    contents = b''
-    # Magic number
-    contents += b'LINK\n'
-    # Header
-    num_segments = len(out_segments)
-    num_symbols = 0 if options.skip_symbols else len(out_symbols)
-    num_relocations = 0 if options.skip_relocations else len(out_relocations)
-    contents += f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode()
-    # Segments
-    for s in out_segments:
-        contents += f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode()
-    # Symbols
-    if not options.skip_symbols:
-        for sym in out_symbols:
-            contents += f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode()
-    # Relocations
-    if not options.skip_relocations:
-        for rel in out_relocations:
-            extra_str = ' '.join(rel.extra_fields)
-            contents += f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type}".encode()
-            if extra_str:
-                contents += f" {extra_str}".encode()
-            contents += b'\n'
-    # Data
-    if not options.skip_data:
-        if out_data:
-            contents += out_data.encode()
-            contents += b'\n'
+    obj = Object(
+        filename=filename,
+        num_segments=len(out_segments),
+        num_symbols=len(out_symbols),
+        num_relocations=len(out_relocations),
+        segments=out_segments,
+        symbols=out_symbols,
+        relocations=out_relocations,
+        data=out_data,
+    )
 
+    contents = obj.serialize(
+        skip_symbols=options.skip_symbols,
+        skip_relocations=options.skip_relocations,
+        skip_data=options.skip_data,
+        )
+        
     # Check if the output file already exists and remove it
     if os.path.exists(filename):
         os.remove(filename)

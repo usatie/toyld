@@ -4,20 +4,47 @@ DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
 class Object:
-    def __init__(self, filename, num_segments, num_symbols, num_relocations):
+    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None):
         self.filename = filename
         self.num_segments = num_segments
         self.num_symbols = num_symbols
         self.num_relocations = num_relocations
-        self.segments = None
-        self.symbols = None
-        self.relocations = None
-        self.data = None
+        self.segments = segments
+        self.symbols = symbols
+        self.relocations = relocations
+        self.data = data
 
-    def get_binary(self):
-        # TODO: Create binary representation of the object from the segments, symbols, relocations, and data.
-        with open(self.filename, 'rb') as f:
-            return f.read()
+    def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
+        contents = b''
+        # Magic number
+        contents += b'LINK\n'
+        # Header
+        num_segments = self.num_segments
+        num_symbols = 0 if skip_symbols else self.num_symbols
+        num_relocations = 0 if skip_relocations else self.num_relocations
+        contents += f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode()
+        # Segments
+        for s in self.segments:
+            contents += f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode()
+        # Symbols
+        if not skip_symbols:
+            for sym in self.symbols.values():
+                contents += f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode()
+        # Relocations
+        if not skip_relocations:
+            for rel in self.relocations:
+                extra_str = ' '.join(rel.extra_fields)
+                contents += f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type}".encode()
+                if extra_str:
+                    contents += f" {extra_str}".encode()
+                contents += b'\n'
+        # Data
+        if not skip_data:
+            if self.data:
+                for d in self.data:
+                    contents += d.hex().encode()
+                    contents += b'\n'
+        return contents
 
     def __repr__(self):
         return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"

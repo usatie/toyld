@@ -45,8 +45,11 @@ def create_file_library(objs, output_file):
 
     # object file contents (concatenated to skip comments and whitespace in the input files)
     contents = b''
+    mod_sizes = {}
     for o in objs:
-        contents += o.get_binary()
+        serialized = o.serialize()
+        contents += serialized
+        mod_sizes[o.filename] = len(serialized)
     # recalculate the directory offset based on the actual header and contents size
     dir_offset = len(header) + len(contents)
     while dir_offset != tmp_dir_offset:
@@ -58,7 +61,7 @@ def create_file_library(objs, output_file):
     dir_entries = b''
     mod_offset = len(header)
     for o in objs:
-        mod_size = len(o.get_binary())
+        mod_size = mod_sizes[o.filename]
         symbols_str = ' '.join(name for name, sym in o.symbols.items() if sym.sym_type == 'D' or (sym.sym_type == 'U' and sym.value > 0))
         dir_entries += f"{mod_offset:x} {mod_size:x} {symbols_str}\n".encode()
         mod_offset += mod_size
