@@ -51,10 +51,10 @@ def link_objects(input_files, use_common):
             print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
             sys.exit(1)
     objs = parse_objects(object_files)
-    dirlib_symtab, filelib_symtab = symbol.collect_symbols(library_dirs, library_files)
+    lib_symtab = symbol.collect_symbols(library_dirs, library_files)
 
     # Resolve symbol names
-    symbol_table, commons = symbol.resolve_names(objs, dirlib_symtab)
+    symbol_table, commons = symbol.resolve_names(objs, lib_symtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:

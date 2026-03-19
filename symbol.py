@@ -21,13 +21,30 @@ class GlobalSymbol:
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
 
+class Module:
+    @staticmethod
+    def file_format(filename, offset, size):
+        mod = Module()
+        mod.filename = filename
+        mod.offset = offset
+        mod.size = size
+        mod.format = 'file'
+        return mod
+    
+    @staticmethod
+    def dir_format(filename):
+        mod = Module()
+        mod.filename = filename
+        mod.format = 'dir'
+        return mod
+
 def collect_symbols(library_dirs, library_files):
-    dirlib_symbols = {}
+    symtab = {}
     for lib_dir in library_dirs:
         for filename in os.listdir(lib_dir):
-            dirlib_symbols[filename] = os.path.join(lib_dir, filename)
+            symbol_name = filename
+            symtab[symbol_name] = Module.dir_format(os.path.join(lib_dir, symbol_name))
 
-    filelib_symbols = {}
     for file in library_files:
         with open(file, 'r') as f:
             line = f.readline()
@@ -43,18 +60,14 @@ def collect_symbols(library_dirs, library_files):
                 mod_size = int(mod_size, 16)
                 print(f"Module {i}: offset={mod_offset} size={mod_size} symbols={symbol_strs}")
                 for sym in symbol_strs:
-                    if sym in filelib_symbols:
-                        print(f"Error: symbol '{sym}' is multiply defined in library files '{filelib_symbols[sym]}' and '{file}'", file=sys.stderr)
+                    if sym in symtab:
+                        print(f"Error: symbol '{sym}' is multiply defined in library files '{symtab[sym].filename}' and '{file}'", file=sys.stderr)
                         sys.exit(1)
-                    elif sym in dirlib_symbols:
-                        print(f"Error: symbol '{sym}' is multiply defined in directory library '{dirlib_symbols[sym]}' and file library '{file}'", file=sys.stderr)
-                        sys.exit(1)
-                    filelib_symbols[sym] = (file, mod_offset, mod_size)
-    print(f"Collected {len(dirlib_symbols)} symbols from directory libraries and {len(filelib_symbols)} symbols from file libraries")
-    print(f"Directory library symbols: {dirlib_symbols}")
-    print(f"File library symbols: {filelib_symbols}")
+                    symtab[sym] = Module.file_format(file, mod_offset, mod_size)
+    print(f"Collected {len(symtab)} symbols from libraries")
+    print(f"Library symbol table: {symtab}")
 
-    return dirlib_symbols, filelib_symbols
+    return symtab
 
 def resolve_names(objs, libsymtab):
     global_symbol_table = {}
@@ -98,7 +111,7 @@ def resolve_names(objs, libsymtab):
                 sys.exit(1)
             # load the library object file and add it to the list of objects to visit
             dprint(f"Resolving symbol '{sym.name}' from library file '{libsymtab[sym.name]}'")
-            lib_filename = libsymtab[sym.name]
+            lib_filename = libsymtab[sym.name].filename
             lib_obj = parse_objects([lib_filename])[0]
             to_visit.append(lib_obj)
             objs.append(lib_obj)
