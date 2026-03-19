@@ -206,51 +206,52 @@ class LimitedReader(io.RawIOBase):
     def readable(self):
         return True
 
-def parse_object(input_file, offset=None, size=None):
-    # Simply copy the input file to the output file
-    with open(input_file, 'rb') as infile:
-        dprint(f"Processing input file: {input_file}")
-        if offset is not None:
-            infile.seek(offset)
+def parse_object(filename):
+    dprint(f"Processing input file: {filename}")
+    with open(filename, 'rb') as infile:
+        return _parse_object(filename, infile)
 
-        if size is not None:
-            reader = io.BufferedReader(LimitedReader(infile.raw, size))
-        else:
-            reader = infile
+def parse_module(filename, offset, size):
+    dprint(f"Processing input file: {filename} with offset={offset} and size={size}")
+    with open(filename, 'rb') as infile:
+        infile.seek(offset)
+        reader = io.BufferedReader(LimitedReader(infile.raw, size))
+        return _parse_object(filename, reader)
 
-        # Check magic number: 'LINK'
-        line = read_next_line(reader)
-        if line != b'LINK':
-            print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
-            print(f"Got: {line}", file=sys.stderr)
-            sys.exit(1)
+def _parse_object(filename, reader):
+    # Check magic number: 'LINK'
+    line = read_next_line(reader)
+    if line != b'LINK':
+        print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
+        print(f"Got: {line}", file=sys.stderr)
+        sys.exit(1)
 
-        # Read header: 'nsegs nsyms nrels'
-        line = read_next_line(reader)
-        try:
-            # num are written in hex, so we need to convert them from hex to int
-            num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
-            dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-            obj = Object(input_file, num_segments, num_symbols, num_relocations)
-        except ValueError:
-            print("Invalid header format: expected three integers", file=sys.stderr)
-            sys.exit(1)
+    # Read header: 'nsegs nsyms nrels'
+    line = read_next_line(reader)
+    try:
+        # num are written in hex, so we need to convert them from hex to int
+        num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
+        dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
+        obj = Object(filename, num_segments, num_symbols, num_relocations)
+    except ValueError:
+        print("Invalid header format: expected three integers", file=sys.stderr)
+        sys.exit(1)
 
-        # Read segments
-        obj.segments = parse_segments(reader, obj.num_segments)
-        dprint(f"Segments: {obj.segments}")
+    # Read segments
+    obj.segments = parse_segments(reader, obj.num_segments)
+    dprint(f"Segments: {obj.segments}")
 
-        # Read symbols
-        obj.symbols = parse_symbols(reader, num_symbols)
-        dprint(f"Symbols: {obj.symbols}")
+    # Read symbols
+    obj.symbols = parse_symbols(reader, num_symbols)
+    dprint(f"Symbols: {obj.symbols}")
 
-        # Read relocations
-        obj.relocations = parse_relocations(reader, num_relocations)
+    # Read relocations
+    obj.relocations = parse_relocations(reader, num_relocations)
 
-        # Read data
-        # count all segments that have 'P': present in their code letter
-        num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
-        obj.data = parse_data(reader, num_data)
+    # Read data
+    # count all segments that have 'P': present in their code letter
+    num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
+    obj.data = parse_data(reader, num_data)
     return obj
 
 def parse_objects(input_files):

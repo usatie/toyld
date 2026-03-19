@@ -1,7 +1,7 @@
 import os
 import sys
 
-from object import Symbol, parse_object
+from object import Symbol, parse_object, parse_module
 
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
@@ -139,7 +139,7 @@ def resolve_names(objs, libsymtab):
             if mod.format == 'dir':
                 lib_obj = parse_object(mod.filename)
             elif mod.format == 'file':
-                lib_obj = parse_object(mod.filename, offset=mod.offset, size=mod.size)
+                lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size)
             to_visit.append(lib_obj)
             objs.append(lib_obj)
     return gsymtab
