@@ -1,7 +1,10 @@
 #! /usr/bin/env python3
 
-import sys
+import argparse
 import os
+import sys
+
+
 from object import parse_objects
 
 def create_directory_library(objs, output_dir):
@@ -34,13 +37,17 @@ def create_directory_library(objs, output_dir):
         # Delete the output file (the hardlink will still exist in the output directory)
         os.remove(temp_file)
 
+def create_file_library(objs, output_file):
+    print("Not implemented yet: creating a single file library is not supported in this version.", file=sys.stderr)
+    sys.exit(1)
+
+
 def main():
     if len(sys.argv) < 2:
         file_name = sys.argv[0]
         print(f"Usage: {file_name} <input_file> [--output <output_file>] [--format <output_format>]", file=sys.stderr)
         sys.exit(1)
 
-    import argparse
     parser = argparse.ArgumentParser(description='Simple librarian that creates a library from input object files.')
     parser.add_argument('input_files', nargs='+', help='Input object files to process')
     parser.add_argument('--output', '-o', help='Output file name (default: lib.lk)', default='lib.lk')
@@ -51,6 +58,8 @@ def main():
 
     if args.format == 'directory':
         create_directory_library(objs, args.output)
+    elif args.format == 'file':
+        create_file_library(objs, args.output)
     else:
         print(f"Unsupported output format: {args.format}", file=sys.stderr)
         sys.exit(1)
