@@ -143,9 +143,8 @@ def resolve_names(objs, libsymtab):
     return gsymtab
 
 def resolve_values(objs, gsymtab, out_segments):
-    for sym in gsymtab.values():
-        if sym.is_defined:
-            local_sym = sym.obj.symbols[sym.name]
-            seg = sym.obj.segments[local_sym.seg_number - 1]
-            sym.value = seg.assigned_address + local_sym.value
+    for gsym in (s for s in gsymtab.values() if s.is_defined):
+        local_sym = gsym.obj.symbols[gsym.name]
+        seg = gsym.obj.segments[local_sym.seg_number - 1]
+        gsym.value = seg.assigned_address + local_sym.value
 
