@@ -46,6 +46,7 @@ def link_objects(input_files, use_common):
         out_symbols = objs[0].symbols
 
     out_relocations = [rel for o in objs for rel in o.relocations]
+    # TODO: merge the data sections with the same name (e.g. .data) instead of just concatenating them
     out_data = [d for o in objs for d in o.data]  # combine data from all input files
 
     return out_segments, out_symbols, out_relocations, out_data
