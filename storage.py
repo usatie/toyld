@@ -5,7 +5,7 @@ from object import Segment
 def roundup(size, alignment):
     return (size + alignment - 1) // alignment * alignment
 
-def allocate(objs, commons):
+def allocate(objs, gsymtab):
     # start text segment at 0x1000 to leave some space for the header
     TEXT_START = 0x1000
     VALID_SEGMENT_TYPES = {'RP', 'RWP', 'RW'}
@@ -64,10 +64,11 @@ def allocate(objs, commons):
     bss_size = groups['.bss'].size
     common_start = roundup(bss_start + bss_size, WORD_ALIGNMENT)
     common_size = 0
-    for sym_name, sym in commons.items():
+    commons = {sym_name: sym for sym_name, sym in gsymtab.items() if sym.is_common}
+    for sym in commons.values():
         address = roundup(common_start + common_size, WORD_ALIGNMENT)
         common_size = address + sym.value - common_start
-        sym.assigned_address = address
+        sym.value = address
     bss_size = common_start + common_size - bss_start
     groups['.bss'].size = bss_size
     for seg in groups.values():

@@ -7,19 +7,19 @@ DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
 class GlobalSymbol:
-    def __init__(self, name, is_defined, is_common, obj):
-        self.name = name
-        self.is_defined = is_defined
-        self.is_common = is_common
+    def __init__(self, lsym, obj):
+        self.name = lsym.name
+        self.is_defined = lsym.sym_type == 'D'
+        self.is_common = lsym.sym_type == 'U' and lsym.value > 0
         self.obj = obj
-        self.value = 0 # TODO: needs to be resolved later
+        self.value = lsym.value
 
     def to_symbol(self):
         SYM_ABSOLUTE = 0
         return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D' if self.is_defined else 'U', 0)
 
     def __repr__(self):
-        return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, obj={self.obj.filename})"
+        return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, is_common={self.is_common}, obj={self.obj.filename}, value={self.value})"
 
 class Module:
     @staticmethod
@@ -71,36 +71,34 @@ def collect_symbols(library_dirs, library_files):
 
 def resolve_names(objs, libsymtab):
     gsymtab = {}
-    commons = {}
 
     to_visit = [o for o in objs]
 
     while len(to_visit) > 0:
         while len(to_visit) > 0:
             o = to_visit.pop(0)
-            for sym in o.symbols.values():
-                # Find common blocks and keep track of the largest common block for each symbol name
-                is_common = sym.sym_type == 'U' and sym.value > 0
-                if is_common:
-                    if sym.name not in commons:
-                        commons[sym.name] = sym
-                    elif sym.value > commons[sym.name].value:
-                        commons[sym.name] = sym
-                # Find global symbols and check for multiply defined symbols and inconsistent definitions
-                is_defined = sym.sym_type == 'D'
-                if sym.name not in gsymtab:
-                    gsymtab[sym.name] = GlobalSymbol(sym.name, is_defined, is_common, o)
+            for lsym in o.symbols.values():
+                is_common = lsym.sym_type == 'U' and lsym.value > 0
+                is_defined = lsym.sym_type == 'D'
+                if lsym.name not in gsymtab:
+                    gsymtab[lsym.name] = GlobalSymbol(lsym, o)
                     continue
+                # Consistency check for symbol definitions
+                existing_sym  = gsymtab[lsym.name]
+                if is_common ^ existing_sym.is_common:
+                    print(f"Error: symbol '{lsym.name}' has inconsistent definitions: one is common and the other is not", file=sys.stderr)
+                    sys.exit(1)
+                if is_defined and existing_sym.is_defined:
+                    print(f"Error: symbol '{lsym.name}' is multiply defined in files '{existing_sym.obj.filename}' and '{o.filename}'", file=sys.stderr)
+                    sys.exit(1)
+                # Find common blocks and keep track of the largest common block for each symbol name
+                if is_common and lsym.value > gsymtab[lsym.name].value:
+                    gsymtab[lsym.name].value = lsym.value
+                # Skip undefined symbols
                 if not is_defined:
                     continue
-                existing_sym  = gsymtab[sym.name]
-                if is_common ^ existing_sym.is_common:
-                    print(f"Error: symbol '{sym.name}' has inconsistent definitions: one is common and the other is not", file=sys.stderr)
-                    sys.exit(1)
-                if existing_sym.is_defined:
-                    print(f"Error: symbol '{sym.name}' is multiply defined in files '{existing_sym.obj.filename}' and '{o.filename}'", file=sys.stderr)
-                    sys.exit(1)
-                dprint(f"Symbol '{sym.name}' is resolved to file '{o.filename}'")
+                # Find global symbols and check for multiply defined symbols and inconsistent definitions
+                dprint(f"Symbol '{lsym.name}' is resolved to file '{o.filename}'")
                 existing_sym.is_defined = True
                 existing_sym.obj = o
         dprint("Search for undefined symbols in global symbol table...")
@@ -117,14 +115,11 @@ def resolve_names(objs, libsymtab):
             objs.append(lib_obj)
             # we will resolve the symbol now, so that we don't have to load the same library file multiple times
             break
-    return gsymtab, commons
+    return gsymtab
 
-def resolve_values(objs, gsymtab, out_segments, commons):
+def resolve_values(objs, gsymtab, out_segments):
     for sym in gsymtab.values():
-        if sym.is_common and sym.name in commons:
-            common_sym = commons[sym.name]
-            sym.value = common_sym.assigned_address
-        elif sym.is_defined:
+        if sym.is_defined:
             local_sym = sym.obj.symbols[sym.name]
             seg = sym.obj.segments[local_sym.seg_number - 1]
             sym.value = seg.assigned_address + local_sym.value

@@ -54,13 +54,13 @@ def link_objects(input_files, use_common):
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
 
     # Resolve symbol names
-    gsymtab, commons = symbol.resolve_names(objs, lib_symtab)
+    gsymtab = symbol.resolve_names(objs, lib_symtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
-        out_segments = storage.allocate(objs, commons if use_common else {})
+        out_segments = storage.allocate(objs, gsymtab if use_common else {})
         # Resolve symbol values
-        symbol.resolve_values(objs, gsymtab, out_segments, commons if use_common else {})
+        symbol.resolve_values(objs, gsymtab, out_segments)
         out_symbols = {name:gsym.to_symbol() for name,gsym in gsymtab.items()}
     else:
         out_segments = objs[0].segments
