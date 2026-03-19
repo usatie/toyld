@@ -25,10 +25,31 @@ def parse_args():
     parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
     return parser.parse_args()
 
+def is_object_file(filename):
+    with open(filename, 'rb') as infile:
+        magic = infile.read(5)
+        return magic == b'LINK\n'
+
+def is_library_file(filename):
+    with open(filename, 'rb') as infile:
+        magic = infile.read(8)
+        return magic == b'LIBRARY '
+
 def link_objects(input_files, use_common):
     # Input files may contain libraries (directory format), so we need to exclude them
-    library_dirs = [f for f in input_files if os.path.isdir(f)]
-    object_files = [f for f in input_files if os.path.isfile(f)]
+    library_dirs = []
+    library_files = []
+    object_files = []
+    for f in input_files:
+        if os.path.isdir(f):
+            library_dirs.append(f)
+        elif is_object_file(f):
+            object_files.append(f)
+        elif is_library_file(f):
+            library_files.append(f)
+        else:
+            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
+            sys.exit(1)
     objs = parse_objects(object_files)
     libsymtab = symbol.collect_symbols(library_dirs)
 
