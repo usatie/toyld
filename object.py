@@ -71,6 +71,18 @@ class Symbol:
         self.sym_type = sym_type
         self.number = number
 
+    @property
+    def is_defined(self):
+        return self.sym_type == 'D'
+
+    @property
+    def is_common(self):
+        return self.sym_type == 'U' and self.value > 0
+
+    @property
+    def is_undefined(self):
+        return self.sym_type == 'U' and self.value == 0
+
     def __repr__(self):
         return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type})"
 
