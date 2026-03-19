@@ -60,34 +60,41 @@ def write_output(filename, link_results, options):
 
     out_segments, out_symbols, out_relocations, out_data = link_results
 
+    contents = b''
+    # Magic number
+    contents += b'LINK\n'
+    # Header
+    num_segments = len(out_segments)
+    num_symbols = 0 if options.skip_symbols else len(out_symbols)
+    num_relocations = 0 if options.skip_relocations else len(out_relocations)
+    contents += f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode()
+    # Segments
+    for s in out_segments:
+        contents += f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode()
+    # Symbols
+    if not options.skip_symbols:
+        for sym in out_symbols:
+            contents += f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode()
+    # Relocations
+    if not options.skip_relocations:
+        for rel in out_relocations:
+            extra_str = ' '.join(rel.extra_fields)
+            contents += f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type}".encode()
+            if extra_str:
+                contents += f" {extra_str}".encode()
+            contents += b'\n'
+    # Data
+    if not options.skip_data:
+        if out_data:
+            contents += out_data.encode()
+            contents += b'\n'
+
     # Check if the output file already exists and remove it
     if os.path.exists(filename):
         os.remove(filename)
 
     with open(filename, 'wb') as outfile:
-        # Write the output file
-        outfile.write(b'LINK\n')
-        num_segments = len(out_segments)
-        num_symbols = 0 if options.skip_symbols else len(out_symbols)
-        num_relocations = 0 if options.skip_relocations else len(out_relocations)
-        outfile.write(f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode())
-        for s in out_segments:
-            # we need to convert int back to hex when writing to the output file
-            outfile.write(f"{s.name} {s.start:x} {s.size:x} {s.code_letter}\n".encode())
-        if not options.skip_symbols:
-            for sym in out_symbols:
-                outfile.write(f"{sym.name} {sym.value:x} {sym.seg_number:x} {sym.sym_type}\n".encode())
-        if not options.skip_relocations:
-            for rel in out_relocations:
-                extra_str = ' '.join(rel.extra_fields)
-                outfile.write(f"{rel.loc:x} {rel.seg_number:x} {rel.ref:x} {rel.rel_type}".encode())
-                if extra_str:
-                    outfile.write(f" {extra_str}".encode())
-                outfile.write(b'\n')
-        if not options.skip_data:
-            if out_data:
-                outfile.write(out_data.encode())
-                outfile.write(b'\n') # newline to indicate the end of the data section
+        outfile.write(contents)
 
 
 def main():
