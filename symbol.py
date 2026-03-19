@@ -51,26 +51,26 @@ def collect_symbols(library_dirs, library_files):
             magic, nmods, dir_offset = line.strip().split()
             nmods = int(nmods, 16)
             dir_offset = int(dir_offset, 16)
-            print(f"Reading library file '{file}' with {nmods} modules and directory offset {dir_offset}")
+            dprint(f"Reading library file '{file}' with {nmods} modules and directory offset {dir_offset}")
             f.seek(dir_offset)
             for i in range(nmods):
                 line = f.readline()
                 mod_offset, mod_size, *symbol_strs = line.strip().split()
                 mod_offset = int(mod_offset, 16)
                 mod_size = int(mod_size, 16)
-                print(f"Module {i}: offset={mod_offset} size={mod_size} symbols={symbol_strs}")
+                dprint(f"Module {i}: offset={mod_offset} size={mod_size} symbols={symbol_strs}")
                 for sym in symbol_strs:
                     if sym in symtab:
                         print(f"Error: symbol '{sym}' is multiply defined in library files '{symtab[sym].filename}' and '{file}'", file=sys.stderr)
                         sys.exit(1)
                     symtab[sym] = Module.file_format(file, mod_offset, mod_size)
-    print(f"Collected {len(symtab)} symbols from libraries")
-    print(f"Library symbol table: {symtab}")
+    dprint(f"Collected {len(symtab)} symbols from libraries")
+    dprint(f"Library symbol table: {symtab}")
 
     return symtab
 
 def resolve_names(objs, libsymtab):
-    global_symbol_table = {}
+    gsymtab = {}
     commons = {}
 
     to_visit = [o for o in objs]
@@ -88,12 +88,12 @@ def resolve_names(objs, libsymtab):
                         commons[sym.name] = sym
                 # Find global symbols and check for multiply defined symbols and inconsistent definitions
                 is_defined = sym.sym_type == 'D'
-                if sym.name not in global_symbol_table:
-                    global_symbol_table[sym.name] = GlobalSymbol(sym.name, is_defined, is_common, o)
+                if sym.name not in gsymtab:
+                    gsymtab[sym.name] = GlobalSymbol(sym.name, is_defined, is_common, o)
                     continue
                 if not is_defined:
                     continue
-                existing_sym  = global_symbol_table[sym.name]
+                existing_sym  = gsymtab[sym.name]
                 if is_common ^ existing_sym.is_common:
                     print(f"Error: symbol '{sym.name}' has inconsistent definitions: one is common and the other is not", file=sys.stderr)
                     sys.exit(1)
@@ -104,7 +104,7 @@ def resolve_names(objs, libsymtab):
                 existing_sym.is_defined = True
                 existing_sym.obj = o
         dprint("Search for undefined symbols in global symbol table...")
-        undefined_symbols = [sym for sym in global_symbol_table.values() if not sym.is_defined and not sym.is_common]
+        undefined_symbols = [sym for sym in gsymtab.values() if not sym.is_defined and not sym.is_common]
         for sym in undefined_symbols:
             if sym.name not in libsymtab:
                 print(f"Error: symbol '{sym.name}' is undefined but referenced in file '{sym.obj.filename}'", file=sys.stderr)
@@ -117,10 +117,10 @@ def resolve_names(objs, libsymtab):
             objs.append(lib_obj)
             # we will resolve the symbol now, so that we don't have to load the same library file multiple times
             break
-    return global_symbol_table, commons
+    return gsymtab, commons
 
-def resolve_values(objs, symbol_table, out_segments, commons):
-    for sym in symbol_table.values():
+def resolve_values(objs, gsymtab, out_segments, commons):
+    for sym in gsymtab.values():
         if sym.is_common and sym.name in commons:
             common_sym = commons[sym.name]
             sym.value = common_sym.assigned_address
