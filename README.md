@@ -14,6 +14,8 @@ This project implements a linker and librarian that process a simple text-based 
 | 4.3 | Ch. 4 | linker | Arbitrary segment support |
 | 5.1 | Ch. 5 | linker | Symbol name and value resolution |
 | 6.1 | Ch. 6 | librarian | Directory-format library creation |
+| 6.2 | Ch. 6 | linker | Linking against directory-format libraries |
+| 6.3 | Ch. 6 | librarian | File-format library creation |
 
 ## Object File Format (`.lk`)
 
@@ -85,7 +87,7 @@ Output is always written to `a.out.lk`.
 ### Librarian
 
 ```sh
-./librarian.py <input_files...> [--output <output_dir>] [--format directory]
+./librarian.py <input_files...> [--output <output_dir>] [--format <format>]
 ```
 
 **Options:**
@@ -93,9 +95,44 @@ Output is always written to `a.out.lk`.
 | Flag | Description |
 |------|-------------|
 | `--output`, `-o` | Output library name (default: `lib.lk`) |
-| `--format`, `-f` | Library format: `directory` (default) |
+| `--format`, `-f` | Library format: `directory` (default) or `file` |
 
-Creates a **directory-format library**: each defined symbol in the input object files becomes a hard link inside the output directory, pointing to the object file that defines it. This allows a linker to load only the modules needed to resolve undefined symbols.
+### Directory format
+
+The output is a directory. Each defined symbol in the input object files becomes a hard link inside the output directory pointing to the object file that defines it. This allows a linker to load only the modules needed to resolve undefined symbols by looking up a symbol name directly as a filename in the directory.
+
+Example for a library containing `foo.lk` (defines `foo` and `helper`) and `bar.lk` (defines `bar`):
+
+```
+lib.lk/
+├── foo     ← hard link to foo.lk content  (inode A)
+├── helper  ← hard link to foo.lk content  (inode A, same file)
+└── bar     ← hard link to bar.lk content  (inode B)
+```
+
+To resolve a symbol, the linker opens `lib.lk/<symbol>`. Because `foo` and `helper` share an inode, loading either one loads the same object module, which defines both symbols.
+
+### File format
+
+The output is a single file with three sections:
+
+1. **Header line:** `LIBRARY <nmods> <diroff>` — number of modules (hex) and the byte offset (hex) of the directory at the end of the file.
+2. **Module contents:** the raw bytes of each input object file, concatenated in order.
+3. **Directory:** one line per module, at the end of the file:
+   ```
+   <offset> <size> <sym1> <sym2> ...
+   ```
+   All numbers are hexadecimal. `offset` and `size` are the byte position and length of the module within the file. Only defined symbols are listed.
+
+Example for a library containing `foo.lk` (56 bytes, defines `foo` and `helper`) and `bar.lk` (53 bytes, defines `bar`):
+
+```
+LIBRARY 2 7a
+<foo.lk bytes — 0x38 bytes starting at offset 0xd>
+<bar.lk bytes — 0x35 bytes starting at offset 0x45>
+d 38 foo helper
+45 35 bar
+```
 
 ## Running Tests
 
@@ -107,6 +144,8 @@ make test3
 make test4
 make test5
 make test6
+make test7
+make test8
 ```
 
 ## Test Cases
@@ -155,6 +194,21 @@ Creates a directory-format library from two object files. Each defined symbol be
 
 ```sh
 ./librarian.py --output lib.lk tests/testcase6/foo.lk tests/testcase6/bar.lk
+```
+
+### Test 7 — Linking against directory-format libraries (Project 6.2)
+Links `main.lk` against five directory-format libraries. The linker searches each library and loads only the modules needed to resolve undefined symbols, repeating until all symbols are satisfied.
+
+```sh
+./librarian.py --output libprintf.lk tests/testcase7/{printf,sprintf}.lk
+./linker.py tests/testcase7/main.lk libprintf.lk ...
+```
+
+### Test 8 — File-format library (Project 6.3)
+Creates a file-format library from two object files. The library is a single file: a header line, the concatenated module contents, and a directory at the end mapping each symbol to its module's offset and size.
+
+```sh
+./librarian.py --format file --output lib.lk tests/testcase8/foo.lk tests/testcase8/bar.lk
 ```
 
 ## Storage Allocation Strategy
