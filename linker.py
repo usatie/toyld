@@ -64,7 +64,7 @@ def link_objects(input_files, use_common, skip_relocations):
         symbol.resolve_values(objs, gsymtab, out_segments)
         out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
         if not skip_relocations:
-            relocation.resolve(objs, gsymtab, out_segments, gdata)
+            relocation.relocate(objs, gsymtab, out_segments, gdata)
         out_data = [v for v in gdata.values()]
     else:
         out_segments = objs[0].segments
