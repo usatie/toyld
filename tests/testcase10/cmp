@@ -1,0 +1,8 @@
+LINK
+2 1 1
+.text 0 8 RP
+.data 2000 4 RWP
+main 0 1 D
+4 1 2 A4
+deadbeef00002000
+cafebabe

@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -110,6 +110,14 @@ test9:
 		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& echo "$(GREEN)Test 9 passed$(RESET)" || echo "$(RED)Test 9 failed$(RESET)"
+
+test10: TEST_DIR=tests/testcase10
+test10:
+	# Test 10 for project 7.1: A4 relocation — absolute segment reference
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
 
 .PHONY: clean
 clean:

@@ -1,0 +1,16 @@
+LINK
+2 1 1
+# segments: name base length flags
+.text 0 8 RP
+.data 2000 4 RWP
+# symbols: name value seg_number type
+main 0 1 D
+# relocations: loc seg ref type
+# A4: write absolute base address of segment 2 (.data) into 4 bytes at offset 4 in segment 1 (.text)
+# expected: mem[4] = base_address(.data) = 0x2000 → bytes 04-07 become 00 00 20 00 (big-endian)
+4 1 2 A4
+# data: hex-encoded bytes for each segment with P flag (.text, .data)
+# .text: first 4 bytes are dummy instructions, next 4 bytes are the pointer slot (zero-initialized)
+deadbeef00000000
+# .data: 4 bytes of data
+cafebabe
