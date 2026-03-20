@@ -1,0 +1,14 @@
+LINK
+3 1 0
+# segments: name base length flags
+.text 0 4 RP
+.data 0 4 RWP
+.bss  0 4 RW
+# symbols: name value seg_number type
+helper 0 1 D
+# no relocations
+# data: hex-encoded bytes for segments with P flag (.text then .data)
+# .text: 4 bytes of helper function body
+aabbccdd
+# .data: 4 bytes of initialized data
+11223344

@@ -114,8 +114,26 @@ test9:
 test10: TEST_DIR=tests/testcase10
 test10:
 	# Test 10 for project 7.1: A4 relocation — absolute segment reference
+	#
+	# Summary of the test case:
+	#
+	# ┌──────────┬───────────────────────────────────────────┬─────────┬─────────┐
+	# │   File   │                   .text                   │  .data  │  .bss   │
+	# ├──────────┼───────────────────────────────────────────┼─────────┼─────────┤
+	# │ main.lk  │ 8 bytes — dummy instr + zero pointer slot │ 4 bytes │ 8 bytes │
+	# ├──────────┼───────────────────────────────────────────┼─────────┼─────────┤
+	# │ other.lk │ 4 bytes                                   │ 4 bytes │ 4 bytes │
+	# └──────────┴───────────────────────────────────────────┴─────────┴─────────┘
+	#
+	# The A4 relocation 4 1 3 A4 in main.lk writes the base address of main.lk's
+	# .bss (segment 3, local) into the pointer slot at offset 4 of .text.
+	# After storage allocation, .bss lands at 0x2008, so the slot becomes 00002008.
+	#
+	# The expected merged output data:
+	# - .text: deadbeef|00002008|aabbccdd
+	# - .data: cafebabe|11223344
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
 
