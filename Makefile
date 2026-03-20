@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -150,9 +150,9 @@ test11:
 	# ┌──────────┬───────────────────────────────────────────┬──────────┬─────────┐
 	# │   File   │                   .text                   │  .data   │  .bss   │
 	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
-	# │ main.lk  │ 8 bytes — 4B instr + 4B R4-patched slot  │  4 bytes │ 8 bytes │
+	# │ main.lk  │ 8 bytes — 4B instr + 4B R4-patched slot   │  4 bytes │ 8 bytes │
 	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
-	# │ other.lk │ 8 bytes — 4B instr + 4B R4-patched slot  │  4 bytes │ 4 bytes │
+	# │ other.lk │ 8 bytes — 4B instr + 4B R4-patched slot   │  4 bytes │ 4 bytes │
 	# └──────────┴───────────────────────────────────────────┴──────────┴─────────┘
 	#
 	# main.lk: R4 relocation (4 1 2 R4) patches the call slot at offset 4 of
@@ -172,6 +172,44 @@ test11:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 11 passed$(RESET)" || echo "$(RED)Test 11 failed$(RESET)"
+
+test12: TEST_DIR=tests/testcase12
+test12:
+	# Test 12 for project 7.1: AS4 relocation — absolute symbol reference
+	#
+	# Summary of the test case:
+	#
+	# ┌──────────┬─────────────────────────────────────────────────────────┬──────────────────┐
+	# │   File   │                        .text (16B)                      │    .data (8B)    │
+	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┤
+	# │ main.lk  │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 arr-ptr      │ arr[0] | arr[1]  │
+	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┤
+	# │ other.lk │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 struct-ptr   │ s.m0   | s.m1    │
+	# └──────────┴─────────────────────────────────────────────────────────┴──────────────────┘
+	#
+	# 'arr' and 's' are initialized globals in .data (2 int members each, member1 at offset 4).
+	#
+	# main.lk: two AS4 relocations in .text —
+	#   (4 1 3 AS4) patches .text[4:8] with absolute address of 'helper' (zero addend).
+	#   After allocation, helper is at 0x1010, so mem[4..7] = 00001010.
+	#
+	#   (c 1 2 AS4) patches .text[12:16] with &arr[1] = arr_base + addend 4.
+	#   After allocation, arr is at 0x2000, so mem[12..15] = 0x2000+4 = 00002004.
+	#
+	# other.lk: two AS4 relocations in .text —
+	#   (4 1 3 AS4) patches .text[20:24] with absolute address of 'main' (zero addend).
+	#   After allocation, main is at 0x1000, so mem[20..23] = 00001000.
+	#
+	#   (c 1 2 AS4) patches .text[28:32] with &s.member1 = s_base + addend 4.
+	#   After allocation, s is at 0x2008, so mem[28..31] = 0x2008+4 = 0000200c.
+	#
+	# The expected merged output data:
+	# - .text: deadbeef|00001010|aabbccdd|00002004|11223344|00001000|eeff0000|0000200c
+	# - .data: deadbeef|cafebabe|aabbccdd|11223344
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 12 passed$(RESET)" || echo "$(RED)Test 12 failed$(RESET)"
 
 .PHONY: clean
 clean:
