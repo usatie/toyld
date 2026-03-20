@@ -1,0 +1,11 @@
+LINK
+3 2 2
+.text 1000 10 RP
+.data 2000 8 RWP
+.bss 2008 c RW
+main 1000 0 D
+helper 1008 0 D
+4 1 2 R4
+4 1 2 R4
+deadbeef00000ff8aabbccdd00000ff4
+cafebabe11223344

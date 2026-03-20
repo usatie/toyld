@@ -1,0 +1,17 @@
+LINK
+3 1 1
+# segments: name base length flags
+.text 0 8 RP
+.data 0 4 RWP
+.bss  0 8 RW
+# symbols: name value seg_number type
+main 0 1 D
+# relocations: loc seg ref type
+# R4: at offset 4 in segment 1 (.text), write PC-relative offset to segment 2 (.data)
+# after storage allocation: .data is at 0x2000, so value = 0x2000 - (0x1000 + 4 + 4) = 0xff8
+4 1 2 R4
+# data: hex-encoded bytes for segments with P flag (.text then .data)
+# .text: 4 bytes dummy instruction + 4 bytes zero-initialized call slot (filled by R4 relocation)
+deadbeef00000000
+# .data: 4 bytes of initialized data
+cafebabe

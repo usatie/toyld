@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -140,6 +140,38 @@ test10:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
+
+test11: TEST_DIR=tests/testcase11
+test11:
+	# Test 11 for project 7.1: R4 relocation — PC-relative segment reference
+	#
+	# Summary of the test case:
+	#
+	# ┌──────────┬───────────────────────────────────────────┬──────────┬─────────┐
+	# │   File   │                   .text                   │  .data   │  .bss   │
+	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
+	# │ main.lk  │ 8 bytes — 4B instr + 4B R4-patched slot  │  4 bytes │ 8 bytes │
+	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
+	# │ other.lk │ 8 bytes — 4B instr + 4B R4-patched slot  │  4 bytes │ 4 bytes │
+	# └──────────┴───────────────────────────────────────────┴──────────┴─────────┘
+	#
+	# main.lk: R4 relocation (4 1 2 R4) patches the call slot at offset 4 of
+	# .text with the PC-relative offset to main.lk's .data (segment 2).
+	# After storage allocation, main.lk's .text is at 0x1000 and .data is at 0x2000.
+	# value = 0x2000 - (0x1000 + 4 + 4) = 0xff8
+	#
+	# other.lk: R4 relocation (4 1 2 R4) patches the call slot at offset 4 of
+	# .text with the PC-relative offset to other.lk's .data (segment 2).
+	# After storage allocation, other.lk's .text is at 0x1008 and .data is at 0x2004.
+	# value = 0x2004 - (0x1008 + 4 + 4) = 0xff4
+	#
+	# The expected merged output data:
+	# - .text: deadbeef|00000ff8|aabbccdd|00000ff4
+	# - .data: cafebabe|11223344
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 11 passed$(RESET)" || echo "$(RED)Test 11 failed$(RESET)"
 
 .PHONY: clean
 clean:
