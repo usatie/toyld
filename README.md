@@ -64,6 +64,8 @@ bar 20 2 U
 
 **Segment numbers** in symbol and relocation entries are 1-based.
 
+**Relocation types:** `A4` (Absolute [Segment] reference), `R4` (Relative [Segment] reference), `AS4` (Absolute Symbol reference), `RS4` (Relative Symbol reference), `U2` (Upper half reference), `L2` (Lower half reference). See `relocation.md` for details.
+
 ## Usage
 
 ### Linker
