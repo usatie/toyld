@@ -1,9 +1,13 @@
+from collections import defaultdict
 import sys
 
 from object import Segment
 
 def roundup(size, alignment):
     return (size + alignment - 1) // alignment * alignment
+
+def pad(data, alignment):
+    return data + b'\x00' * (roundup(len(data), alignment) - len(data))
 
 def allocate(objs, gsymtab):
     # start text segment at 0x1000 to leave some space for the header
@@ -14,11 +18,13 @@ def allocate(objs, gsymtab):
         '.data': Segment('.data', 0, 0, 'RWP'),
         '.bss': Segment('.bss', 0, 0, 'RW'),
     }
+    gdata = defaultdict(bytes)
     WORD_ALIGNMENT = 0x0004
     PAGE_ALIGNMENT = 0x1000
 
     # Calculate the size of each segment group (textgroup, datagroup, bssgroup)
     for o in objs:
+        data_index = 0
         for lseg in o.segments:
             if lseg.code_letter not in VALID_SEGMENT_TYPES:
                 print(f"Invalid code letter '{lseg.code_letter}' in segment '{lseg.name}' from file '{lseg.filename}'", file=sys.stderr)
@@ -32,6 +38,9 @@ def allocate(objs, gsymtab):
             
             lseg.assigned_offset = gseg.size # For now, assign offset in the merged segment for now
             gseg.size += roundup(lseg.size, WORD_ALIGNMENT)
+            if 'P' in lseg.code_letter:
+                gdata[lseg.name] += pad(o.data[data_index], WORD_ALIGNMENT)
+                data_index += 1
 
     # Calculate the start address of segments in textgroup
     text_group_start = TEXT_START
@@ -76,5 +85,7 @@ def allocate(objs, gsymtab):
     for o in objs:
         for lseg in o.segments:
             lseg.assigned_address = lseg.assigned_offset + gsegments[lseg.name].start # Add the global segment start address to get the final assigned address
-    return [Segment(lseg.name, lseg.start, lseg.size, lseg.code_letter) for lseg in (text_group + data_group + bss_group)]
+    out_segments = [Segment(gseg.name, gseg.start, gseg.size, gseg.code_letter) for gseg in (text_group + data_group + bss_group)]
+    out_data = [gdata[gseg.name] for gseg in (text_group + data_group)]
+    return out_segments, out_data
 

@@ -58,18 +58,16 @@ def link_objects(input_files, use_common):
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
-        out_segments = storage.allocate(objs, gsymtab if use_common else {})
+        out_segments, out_data = storage.allocate(objs, gsymtab if use_common else {})
         # Resolve symbol values
         symbol.resolve_values(objs, gsymtab, out_segments)
         out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
     else:
         out_segments = objs[0].segments
         out_symbols = objs[0].symbols
+        out_data = objs[0].data
 
     out_relocations = [rel for o in objs for rel in o.relocations]
-    # TODO: merge the data sections with the same name (e.g. .data) instead of just concatenating them
-    out_data = [d for o in objs for d in o.data]  # combine data from all input files
-
     return out_segments, out_symbols, out_relocations, out_data
 
 class WriteOptions:
