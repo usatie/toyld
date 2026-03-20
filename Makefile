@@ -117,21 +117,25 @@ test10:
 	#
 	# Summary of the test case:
 	#
-	# ┌──────────┬───────────────────────────────────────────┬─────────┬─────────┐
-	# │   File   │                   .text                   │  .data  │  .bss   │
-	# ├──────────┼───────────────────────────────────────────┼─────────┼─────────┤
-	# │ main.lk  │ 8 bytes — dummy instr + zero pointer slot │ 4 bytes │ 8 bytes │
-	# ├──────────┼───────────────────────────────────────────┼─────────┼─────────┤
-	# │ other.lk │ 4 bytes                                   │ 4 bytes │ 4 bytes │
-	# └──────────┴───────────────────────────────────────────┴─────────┴─────────┘
+	# ┌──────────┬───────────────────────────────────────────┬──────────┬─────────┐
+	# │   File   │                   .text                   │  .data   │  .bss   │
+	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
+	# │ main.lk  │ 8 bytes — dummy instructions              │ 16 bytes │ 8 bytes │
+	# ├──────────┼───────────────────────────────────────────┼──────────┼─────────┤
+	# │ other.lk │ 4 bytes                                   │  4 bytes │ 4 bytes │
+	# └──────────┴───────────────────────────────────────────┴──────────┴─────────┘
 	#
-	# The A4 relocation 4 1 3 A4 in main.lk writes the base address of main.lk's
-	# .bss (segment 3, local) into the pointer slot at offset 4 of .text.
-	# After storage allocation, .bss lands at 0x2008, so the slot becomes 00002008.
+	# main.lk: A4 relocation (6 2 3 A4) writes the base address of main.lk's
+	# .bss (segment 3) into the pointer slot at offset 6 of .data.
+	# After storage allocation, main.lk's .bss lands at 0x2014.
+	#
+	# other.lk: A4 relocation (0 2 3 A4) writes the base address of other.lk's
+	# .bss (segment 3) into the pointer slot at offset 0 of .data.
+	# other.lk's .bss lands at 0x201c (after main.lk's 8-byte .bss).
 	#
 	# The expected merged output data:
-	# - .text: deadbeef|00002008|aabbccdd
-	# - .data: cafebabe|11223344
+	# - .text: 0011223344556677|deadbeef
+	# - .data: aaaaaaaaaaaa|00002014|bbbbbbbbbbbb|0000201c
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \

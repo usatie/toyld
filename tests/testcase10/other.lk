@@ -1,14 +1,17 @@
 LINK
-3 1 0
+3 1 1
 # segments: name base length flags
 .text 0 4 RP
 .data 0 4 RWP
 .bss  0 4 RW
 # symbols: name value seg_number type
 helper 0 1 D
-# no relocations
+# relocations: loc seg ref type
+# A4: at offset 0 in segment 2 (.data), write the absolute base address of segment 3 (.bss)
+# after storage allocation other.lk's .bss lands at 0x201c, so mem[0..3] = 00 00 20 1c (big-endian)
+0 2 3 A4
 # data: hex-encoded bytes for segments with P flag (.text then .data)
 # .text: 4 bytes of helper function body
-aabbccdd
-# .data: 4 bytes of initialized data
-11223344
+deadbeef
+# .data: 4 bytes zero-initialized pointer to .bss (filled by A4 relocation)
+00000000
