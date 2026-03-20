@@ -19,19 +19,19 @@ def allocate(objs, gsymtab):
 
     # Calculate the size of each segment group (textgroup, datagroup, bssgroup)
     for o in objs:
-        for seg in o.segments:
-            if seg.code_letter not in VALID_SEGMENT_TYPES:
-                print(f"Invalid code letter '{seg.code_letter}' in segment '{seg.name}' from file '{seg.filename}'", file=sys.stderr)
+        for lseg in o.segments:
+            if lseg.code_letter not in VALID_SEGMENT_TYPES:
+                print(f"Invalid code letter '{lseg.code_letter}' in segment '{lseg.name}' from file '{lseg.filename}'", file=sys.stderr)
                 sys.exit(1)
-            if seg.name not in gsegments:
-                gsegments[seg.name] = Segment(seg.name, 0, 0, seg.code_letter)
-            g = gsegments[seg.name]
-            if g.code_letter != seg.code_letter:
-                print(f"Segment '{seg.name}' has inconsistent code letters: '{g.code_letter}' and '{seg.code_letter}'", file=sys.stderr)
+            if lseg.name not in gsegments:
+                gsegments[lseg.name] = Segment(lseg.name, 0, 0, lseg.code_letter)
+            gseg = gsegments[lseg.name]
+            if gseg.code_letter != lseg.code_letter:
+                print(f"Segment '{lseg.name}' has inconsistent code letters: '{gseg.code_letter}' and '{lseg.code_letter}'", file=sys.stderr)
                 sys.exit(1)
             
-            seg.assigned_offset = g.size # For now, assign offset in the merged segment for now
-            g.size += roundup(seg.size, WORD_ALIGNMENT)
+            lseg.assigned_offset = gseg.size # For now, assign offset in the merged segment for now
+            gseg.size += roundup(lseg.size, WORD_ALIGNMENT)
 
     # Calculate the start address of segments in textgroup
     text_group_start = TEXT_START
