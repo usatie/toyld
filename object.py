@@ -157,7 +157,7 @@ def parse_relocations(f, num_relocations):
             # Relocation entry may contain extra fields other than loc,seg,ref,type
             fields = line.split()
             loc_str, seg_number_str, ref_str, rel_type = fields[0:4]
-            extra_fields = map(lambda x: x.decode(), fields[4:])  # decode any extra fields as well
+            extra_fields = list(map(lambda x: x.decode(), fields[4:]))  # decode any extra fields as well
             loc = int(loc_str, 16)
             seg_number = int(seg_number_str, 16)
             ref = int(ref_str, 16)

@@ -7,6 +7,7 @@ import sys
 from object import Object, parse_objects
 import storage
 import symbol
+import relocation
 
 
 def parse_args():
@@ -35,7 +36,7 @@ def is_library_file(filename):
         magic = infile.read(8)
         return magic == b'LIBRARY '
 
-def link_objects(input_files, use_common):
+def link_objects(input_files, use_common, skip_relocations):
     # Input files may contain libraries (directory format), so we need to exclude them
     library_dirs = []
     library_files = []
@@ -58,10 +59,13 @@ def link_objects(input_files, use_common):
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     if len(objs) > 1:
-        out_segments, out_data = storage.allocate(objs, gsymtab if use_common else {})
+        out_segments, gdata = storage.allocate(objs, gsymtab if use_common else {})
         # Resolve symbol values
         symbol.resolve_values(objs, gsymtab, out_segments)
         out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
+        if not skip_relocations:
+            relocation.resolve(objs, gsymtab, out_segments, gdata)
+        out_data = [v for v in gdata.values()]
     else:
         out_segments = objs[0].segments
         out_symbols = objs[0].symbols
@@ -107,7 +111,7 @@ def write_output(filename, link_results, options):
 
 def main():
     args = parse_args()
-    results = link_objects(args.input_files, args.common)
+    results = link_objects(args.input_files, args.common, args.skip_relocations)
     write_output(
         args.output,
         results,

@@ -18,7 +18,7 @@ def allocate(objs, gsymtab):
         '.data': Segment('.data', 0, 0, 'RWP'),
         '.bss': Segment('.bss', 0, 0, 'RW'),
     }
-    gdata = defaultdict(bytes)
+    gdata = defaultdict(bytearray)
     WORD_ALIGNMENT = 0x0004
     PAGE_ALIGNMENT = 0x1000
 
@@ -86,6 +86,5 @@ def allocate(objs, gsymtab):
         for lseg in o.segments:
             lseg.assigned_address = lseg.assigned_offset + gsegments[lseg.name].start # Add the global segment start address to get the final assigned address
     out_segments = [Segment(gseg.name, gseg.start, gseg.size, gseg.code_letter) for gseg in (text_group + data_group + bss_group)]
-    out_data = [gdata[gseg.name] for gseg in (text_group + data_group)]
-    return out_segments, out_data
+    return out_segments, gdata
 
