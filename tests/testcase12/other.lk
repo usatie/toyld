@@ -2,11 +2,11 @@ LINK
 2 3 2
 # segments: name base length flags
 .text 0 10 RP
-.data 0 8 RWP
+.bss 0 8 RW
 # symbols: name value seg_number type
 # symbol 1: helper — defined in .text at offset 0
 helper 0 1 D
-# symbol 2: s — defined in .data at offset 0 (struct: s.member0 at 0, s.member1 at 4)
+# symbol 2: s — defined in .bss at offset 0 (struct: s.member0 at 0, s.member1 at 4)
 s 0 2 D
 # symbol 3: main — undefined (defined in main.lk)
 main 0 0 U
@@ -16,8 +16,6 @@ main 0 0 U
 # AS4: at offset 0xc in .text (seg 1), write absolute address of symbol 2 (s) + addend 4 (&s.member1);
 # addend 4 is pre-stored at the relocation site
 c 1 2 AS4
-# data: hex-encoded bytes for P-flag segments (.text then .data)
+# data: hex-encoded bytes for P-flag segments (.text only, .bss has no data)
 # .text: 4B function body | 4B AS4 fn-ptr slot (addend=0) | 4B separator | 4B AS4 struct-ptr slot (addend=4)
 1122334400000000aabbccdd00000004
-# .data: s.member0=aabbccdd, s.member1=11223344
-aabbccdd11223344

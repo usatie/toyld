@@ -179,15 +179,16 @@ test12:
 	#
 	# Summary of the test case:
 	#
-	# ┌──────────┬─────────────────────────────────────────────────────────┬──────────────────┐
-	# │   File   │                        .text (16B)                      │    .data (8B)    │
-	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┤
-	# │ main.lk  │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 arr-ptr      │ arr[0] | arr[1]  │
-	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┤
-	# │ other.lk │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 struct-ptr   │ s.m0   | s.m1    │
-	# └──────────┴─────────────────────────────────────────────────────────┴──────────────────┘
+	# ┌──────────┬─────────────────────────────────────────────────────────┬──────────────────┬──────────┐
+	# │   File   │                        .text (16B)                      │    .data (8B)    │  .bss    │
+	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┼──────────┤
+	# │ main.lk  │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 arr-ptr       │ arr[0] | arr[1]  │  (none)  │
+	# ├──────────┼─────────────────────────────────────────────────────────┼──────────────────┼──────────┤
+	# │ other.lk │ 4B body | 4B AS4 fn-ptr | 4B sep | 4B AS4 struct-ptr    │  (none)          │  8B (s)  │
+	# └──────────┴─────────────────────────────────────────────────────────┴──────────────────┴──────────┘
 	#
-	# 'arr' and 's' are initialized globals in .data (2 int members each, member1 at offset 4).
+	# 'arr' is an initialized global in .data (2 int members, member1 at offset 4).
+	# 's' is an uninitialized global in .bss (2 int members, member1 at offset 4).
 	#
 	# main.lk: two AS4 relocations in .text —
 	#   (4 1 3 AS4) patches .text[4:8] with absolute address of 'helper' (zero addend).
@@ -201,11 +202,11 @@ test12:
 	#   After allocation, main is at 0x1000, so mem[20..23] = 00001000.
 	#
 	#   (c 1 2 AS4) patches .text[28:32] with &s.member1 = s_base + addend 4.
-	#   After allocation, s is at 0x2008, so mem[28..31] = 0x2008+4 = 0000200c.
+	#   After allocation, s is at 0x2008 (start of .bss), so mem[28..31] = 0x2008+4 = 0000200c.
 	#
 	# The expected merged output data:
-	# - .text: deadbeef|00001010|aabbccdd|00002004|11223344|00001000|eeff0000|0000200c
-	# - .data: deadbeef|cafebabe|aabbccdd|11223344
+	# - .text: deadbeef|00001010|aabbccdd|00002004|11223344|00001000|aabbccdd|0000200c
+	# - .data: deadbeef|cafebabe
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
