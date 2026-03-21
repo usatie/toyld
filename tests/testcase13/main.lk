@@ -1,0 +1,29 @@
+LINK
+1 4 3
+# segments: name base length flags
+.text 0 18 RP
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: helper — undefined (defined in other.lk's .text)
+helper 0 0 U
+# symbol 3: gvar — undefined (defined in other.lk's .data)
+gvar 0 0 U
+# symbol 4: gbuf — undefined (defined in other.lk's .bss)
+gbuf 0 0 U
+# relocations: loc seg ref type
+# RS4: at offset 0x4 in .text, call helper in .text; addend=0
+# after allocation: helper=0x1018, loc_vaddr=0x1004
+# value = 0x1018 + 0 - (0x1004 + 4) = 0x10
+4 1 2 RS4
+# RS4: at offset 0xc in .text, RIP-relative ref to gvar in .data; addend=0
+# after allocation: gvar=0x2000, loc_vaddr=0x100c
+# value = 0x2000 + 0 - (0x100c + 4) = 0xff0
+c 1 3 RS4
+# RS4: at offset 0x14 in .text, RIP-relative ref to gbuf in .bss; addend=0
+# after allocation: gbuf=0x2004, loc_vaddr=0x1014
+# value = 0x2004 + 0 - (0x1014 + 4) = 0xfec
+14 1 4 RS4
+# data: hex-encoded bytes for P-flag segments (.text only)
+# .text: 4B body | 4B RS4 slot (→helper) | 4B code | 4B RS4 slot (→gvar) | 4B code | 4B RS4 slot (→gbuf)
+deadbeef00000000cafebabe00000000aabbccdd00000000

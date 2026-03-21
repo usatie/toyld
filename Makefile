@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -211,6 +211,39 @@ test12:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 12 passed$(RESET)" || echo "$(RED)Test 12 failed$(RESET)"
+
+test13: TEST_DIR=tests/testcase13
+test13:
+	# Test 13 for project 7.1: RS4 relocation — PC-relative symbol reference
+	# Covers RS4 targeting symbols in .text, .data, and .bss.
+	#
+	# Summary of the test case:
+	#
+	# ┌──────────┬───────────────────────────────────────────────────────────────┬──────────┬──────────┐
+	# │   File   │                        .text (24B)                            │  .data   │   .bss   │
+	# ├──────────┼───────────────────────────────────────────────────────────────┼──────────┼──────────┤
+	# │ main.lk  │ 4B body | 4B RS4→helper | 4B | 4B RS4→gvar | 4B | 4B RS4→gbuf │ (none)   │  (none)  │
+	# ├──────────┼───────────────────────────────────────────────────────────────┼──────────┼──────────┤
+	# │ other.lk │ 4B body | 4B RS4→main                                         │  4B gvar │  4B gbuf │
+	# └──────────┴───────────────────────────────────────────────────────────────┴──────────┴──────────┘
+	#
+	# After allocation: main=0x1000, helper=0x1018, gvar=0x2000, gbuf=0x2004
+	#
+	# main.lk RS4 relocations in .text —
+	#   (4  1 2 RS4) → helper(.text): 0x1018 - (0x1004+4) = 0x10   (forward call)
+	#   (c  1 3 RS4) → gvar(.data):   0x2000 - (0x100c+4) = 0xff0  (RIP-relative to data)
+	#   (14 1 4 RS4) → gbuf(.bss):    0x2004 - (0x1014+4) = 0xfec  (RIP-relative to bss)
+	#
+	# other.lk RS4 relocation in .text —
+	#   (4 1 4 RS4) → main(.text): 0x1000 - (0x101c+4) = 0xffffffe0 (backward call)
+	#
+	# The expected merged output data:
+	# - .text: deadbeef|00000010|cafebabe|00000ff0|aabbccdd|00000fec|11223344|ffffffe0
+	# - .data: 05060708
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 13 passed$(RESET)" || echo "$(RED)Test 13 failed$(RESET)"
 
 .PHONY: clean
 clean:

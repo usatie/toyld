@@ -1,0 +1,25 @@
+LINK
+3 4 1
+# segments: name base length flags
+.text 0 8 RP
+.data 0 4 RWP
+.bss 0 4 RW
+# symbols: name value seg_number type
+# symbol 1: helper — defined in .text at offset 0
+helper 0 1 D
+# symbol 2: gvar — defined in .data at offset 0
+gvar 0 2 D
+# symbol 3: gbuf — defined in .bss at offset 0
+gbuf 0 3 D
+# symbol 4: main — undefined (defined in main.lk's .text)
+main 0 0 U
+# relocations: loc seg ref type
+# RS4: at offset 0x4 in .text, call main in .text; addend=0
+# after allocation: main=0x1000, loc_vaddr = 0x1018+4 = 0x101c
+# value = 0x1000 + 0 - (0x101c + 4) = 0x1000 - 0x1020 = -0x20 = 0xffffffe0 (backward call)
+4 1 4 RS4
+# data: hex-encoded bytes for P-flag segments (.text then .data; .bss has no data)
+# .text: 4B function body | 4B RS4 call slot (→main)
+1122334400000000
+# .data: gvar initialized to 0x05060708
+05060708
