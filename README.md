@@ -16,6 +16,13 @@ This project implements a linker and librarian that process a simple text-based 
 | 6.1 | Ch. 6 | librarian | Directory-format library creation |
 | 6.2 | Ch. 6 | linker | Linking against directory-format libraries |
 | 6.3 | Ch. 6 | librarian | File-format library creation |
+| 6.4 | Ch. 6 | linker | Linking against file-format libraries |
+| 7.1 | Ch. 7 | linker | A4 relocation — absolute segment reference |
+| 7.1 | Ch. 7 | linker | R4 relocation — PC-relative segment reference |
+| 7.1 | Ch. 7 | linker | AS4 relocation — absolute symbol reference |
+| 7.1 | Ch. 7 | linker | RS4 relocation — PC-relative symbol reference |
+| 7.1 | Ch. 7 | linker | U2 relocation — upper 16-bit symbol address |
+| 7.1 | Ch. 7 | linker | L2 relocation — lower 16-bit symbol address |
 
 ## Object File Format (`.lk`)
 
@@ -139,15 +146,8 @@ d 38 foo helper
 ## Running Tests
 
 ```sh
-make          # Run all tests
-make test1    # Run individual test
-make test2
-make test3
-make test4
-make test5
-make test6
-make test7
-make test8
+make           # Run all tests (test1–test15)
+make test1     # Run individual test
 ```
 
 ## Test Cases
@@ -212,6 +212,27 @@ Creates a file-format library from two object files. The library is a single fil
 ```sh
 ./librarian.py --format file --output lib.lk tests/testcase8/foo.lk tests/testcase8/bar.lk
 ```
+
+### Test 9 — Linking against file-format libraries (Project 6.4)
+Same dependency graph as Test 7, but all five libraries are single-file archives created with `--format file`. The linker detects the `LIBRARY` header, reads the directory at `diroff`, and seeks to each module's offset on demand.
+
+### Test 10 — A4 relocation (Project 7.1)
+Links two object files containing `A4` relocations. Each patched slot receives the absolute address of the referenced segment's base.
+
+### Test 11 — R4 relocation (Project 7.1)
+Links two object files containing `R4` relocations. Each patched slot receives the PC-relative offset from the end of the relocation slot to the target segment's base.
+
+### Test 12 — AS4 relocation (Project 7.1)
+Links two object files containing `AS4` relocations. Each patched slot receives the absolute address of the referenced symbol, plus the addend stored in the slot.
+
+### Test 13 — RS4 relocation (Project 7.1)
+Links two object files containing `RS4` relocations targeting symbols in `.text`, `.data`, and `.bss`. Each patched slot receives the PC-relative offset from the end of the slot to the target symbol.
+
+### Test 14 — U2 relocation (Project 7.1)
+Links two object files where one contains a `U2` relocation. The upper 16 bits of the referenced symbol's address are written as a big-endian 2-byte value into the slot.
+
+### Test 15 — L2 relocation (Project 7.1)
+Mirror of Test 14 using `L2`. The lower 16 bits of the referenced symbol's address are written as a big-endian 2-byte value into the slot.
 
 ## Storage Allocation Strategy
 
