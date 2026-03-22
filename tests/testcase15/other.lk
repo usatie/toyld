@@ -1,0 +1,19 @@
+LINK
+3 2 0
+# segments: name base length flags
+.text 0 4 RP
+.data 0 4 RWP
+.bss 0 4 RW
+# symbols: name value seg_number type
+# symbol 1: helper — defined in .text at offset 0
+helper 0 1 D
+# symbol 2: gbss — defined in .bss at offset 0
+# after allocation: other.lk's .bss is placed after main.lk's 0x1cd43674-byte .bss padding,
+# so gbss lands at 0x2004 + 0x1cd43674 = 0x1cd45678
+gbss 0 3 D
+# relocations: (none)
+# data: hex-encoded bytes for P-flag segments (.text then .data; .bss has no data)
+# .text: 4B body
+11223344
+# .data: 4 bytes
+05060708

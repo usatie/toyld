@@ -1,0 +1,11 @@
+LINK
+3 3 1
+.text 1000 c RP
+.data 2000 4 RWP
+.bss 2004 1cd43678 RW
+main 1000 0 D
+gbss 1cd45678 0 D
+helper 1008 0 D
+2 1 2 U2
+cafe1cd4deadbeef11223344
+05060708

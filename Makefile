@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -244,6 +244,61 @@ test13:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 13 passed$(RESET)" || echo "$(RED)Test 13 failed$(RESET)"
+
+test14: TEST_DIR=tests/testcase14
+test14:
+	# Test 14 for project 7.1: U2 relocation — upper 16-bit symbol address.
+	# main.lk's artificially large .bss (0x1cd4e000 bytes, no file data) acts as
+	# padding to push other.lk's .bss to a high address with a visually clear
+	# non-trivial upper half. Big-endian 2-byte write assumed throughout.
+	#
+	# ┌──────────┬──────────────────┬──────────┬──────────────────────┐
+	# │   File   │      .text       │  .data   │        .bss          │
+	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
+	# │ main.lk  │ 8B (U2 slot @2)  │  (none)  │ 0x1cd43674B padding  │
+	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
+	# │ other.lk │ 4B body          │  4B      │ 4B (gbss here)       │
+	# └──────────┴──────────────────┴──────────┴──────────────────────┘
+	#
+	# After allocation: gbss = 0x2004 + 0x1cd43674 = 0x1cd45678
+	#
+	# main.lk relocation in .text —
+	#   (2 1 2 U2) → upper 16 of gbss (big-endian): (0x1cd45678 >> 16) & 0xffff = 0x1cd4
+	#
+	# The expected merged output data:
+	# - .text: cafe|1cd4|deadbeef|11223344
+	# - .data: 05060708
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 14 passed$(RESET)" || echo "$(RED)Test 14 failed$(RESET)"
+
+test15: TEST_DIR=tests/testcase15
+test15:
+	# Test 15 for project 7.1: L2 relocation — lower 16-bit symbol address.
+	# Mirror of test 14: same structure, but writes the lower half of the address.
+	# Big-endian 2-byte write assumed throughout.
+	#
+	# ┌──────────┬──────────────────┬──────────┬──────────────────────┐
+	# │   File   │      .text       │  .data   │        .bss          │
+	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
+	# │ main.lk  │ 8B (L2 slot @2)  │  (none)  │ 0x1cd43674B padding  │
+	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
+	# │ other.lk │ 4B body          │  4B      │ 4B (gbss here)       │
+	# └──────────┴──────────────────┴──────────┴──────────────────────┘
+	#
+	# After allocation: gbss = 0x2004 + 0x1cd43674 = 0x1cd45678
+	#
+	# main.lk relocation in .text —
+	#   (2 1 2 L2) → lower 16 of gbss (big-endian): 0x1cd45678 & 0xffff = 0x5678
+	#
+	# The expected merged output data:
+	# - .text: babe|5678|deadbeef|11223344
+	# - .data: 05060708
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 15 passed$(RESET)" || echo "$(RED)Test 15 failed$(RESET)"
 
 .PHONY: clean
 clean:
