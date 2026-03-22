@@ -248,14 +248,14 @@ test13:
 test14: TEST_DIR=tests/testcase14
 test14:
 	# Test 14 for project 7.1: U2 relocation — upper 16-bit symbol address.
-	# main.lk's artificially large .bss (0x1cd4e000 bytes, no file data) acts as
+	# main.lk's artificially large .bss (0x1cd43674 bytes, no file data) acts as
 	# padding to push other.lk's .bss to a high address with a visually clear
 	# non-trivial upper half. Big-endian 2-byte write assumed throughout.
 	#
 	# ┌──────────┬──────────────────┬──────────┬──────────────────────┐
 	# │   File   │      .text       │  .data   │        .bss          │
 	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
-	# │ main.lk  │ 8B (U2 slot @2)  │  (none)  │ 0x1cd43674B padding  │
+	# │ main.lk  │ 8B (U2 slot @4)  │  (none)  │ 0x1cd43674B padding  │
 	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
 	# │ other.lk │ 4B body          │  4B      │ 4B (gbss here)       │
 	# └──────────┴──────────────────┴──────────┴──────────────────────┘
@@ -263,10 +263,10 @@ test14:
 	# After allocation: gbss = 0x2004 + 0x1cd43674 = 0x1cd45678
 	#
 	# main.lk relocation in .text —
-	#   (2 1 2 U2) → upper 16 of gbss (big-endian): (0x1cd45678 >> 16) & 0xffff = 0x1cd4
+	#   (4 1 2 U2) → upper 16 of gbss (big-endian): (0x1cd45678 >> 16) & 0xffff = 0x1cd4
 	#
 	# The expected merged output data:
-	# - .text: cafe|1cd4|deadbeef|11223344
+	# - .text: cafebabe|1cd4|beef|11223344
 	# - .data: 05060708
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
@@ -282,7 +282,7 @@ test15:
 	# ┌──────────┬──────────────────┬──────────┬──────────────────────┐
 	# │   File   │      .text       │  .data   │        .bss          │
 	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
-	# │ main.lk  │ 8B (L2 slot @2)  │  (none)  │ 0x1cd43674B padding  │
+	# │ main.lk  │ 8B (L2 slot @6)  │  (none)  │ 0x1cd43674B padding  │
 	# ├──────────┼──────────────────┼──────────┼──────────────────────┤
 	# │ other.lk │ 4B body          │  4B      │ 4B (gbss here)       │
 	# └──────────┴──────────────────┴──────────┴──────────────────────┘
@@ -290,10 +290,10 @@ test15:
 	# After allocation: gbss = 0x2004 + 0x1cd43674 = 0x1cd45678
 	#
 	# main.lk relocation in .text —
-	#   (2 1 2 L2) → lower 16 of gbss (big-endian): 0x1cd45678 & 0xffff = 0x5678
+	#   (6 1 2 L2) → lower 16 of gbss (big-endian): 0x1cd45678 & 0xffff = 0x5678
 	#
 	# The expected merged output data:
-	# - .text: babe|5678|deadbeef|11223344
+	# - .text: cafebabe|dead|5678|11223344
 	# - .data: 05060708
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \

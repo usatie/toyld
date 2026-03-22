@@ -11,13 +11,13 @@ main 0 1 D
 # symbol 2: gbss — undefined (defined in other.lk's .bss)
 gbss 0 0 U
 # relocations: loc seg ref type
-# U2: at offset 0x2 in .text, write upper 16 bits of symbol 2 (gbss)
+# U2: at offset 0x4 in .text, write upper 16 bits of symbol 2 (gbss)
 # after allocation: gbss = 0x2004 + 0x1cd43674 = 0x1cd45678
 # value (big-endian 2 bytes) = (0x1cd45678 >> 16) & 0xffff = 0x1cd4
-2 1 2 U2
+4 1 2 U2
 # data: hex-encoded bytes for P-flag segments (.text only; .bss has no data)
 # .text layout (8 bytes):
-#   bytes 0-1: cafe  (lui instruction opcode)
-#   bytes 2-3: 0000  (U2 slot — patched with upper 16 bits of gbss → 0x1cd4)
-#   bytes 4-7: deadbeef
-cafe0000deadbeef
+#   bytes 0-3: cafebabe  (lui instruction opcode)
+#   bytes 4-5: 0000  (U2 slot — patched with upper 16 bits of gbss → 0x1cd4)
+#   bytes 6-7: beef
+cafebabe0000beef

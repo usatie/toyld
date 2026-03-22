@@ -8,8 +8,8 @@ LINK
 # symbol 1: helper — defined in .text at offset 0
 helper 0 1 D
 # symbol 2: gbss — defined in .bss at offset 0
-# after allocation: other.lk's .bss is placed after main.lk's 0x1cd4e000-byte .bss padding,
-# so gbss lands at 0x2004 + 0x1cd4e000 = 0x1cd50004
+# after allocation: other.lk's .bss is placed after main.lk's 0x1cd43674-byte .bss padding,
+# so gbss lands at 0x2004 + 0x1cd43674 = 0x1cd45678
 gbss 0 3 D
 # relocations: (none)
 # data: hex-encoded bytes for P-flag segments (.text then .data; .bss has no data)
