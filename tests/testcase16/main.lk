@@ -1,0 +1,49 @@
+LINK
+3 4 6
+# segments: name base length flags
+.text 0 1c RP
+.data 0 4 RWP
+# large .bss padding: pushes other.lk's .bss to 0x2008 + 0xfe00 = 0x11e08
+# giving gbuf a non-trivial upper half (0x0001) and lower half (0x1e08)
+.bss 0 fe00 RW
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: helper — undefined (defined in other.lk's .text)
+helper 0 0 U
+# symbol 3: gvar — undefined (defined in other.lk's .data)
+gvar 0 0 U
+# symbol 4: gbuf — undefined (defined in other.lk's .bss)
+gbuf 0 0 U
+# relocations: loc seg ref type
+# A4: at offset 0x4 in .text, write absolute base address of seg 2 (.data)
+# after allocation: .data at 0x2000 → mem[4..7] = 00002000
+4 1 2 A4
+# R4: at offset 0x8 in .text, write PC-relative offset to seg 3 (.bss)
+# after allocation: .bss at 0x2008 → 0x2008 - (0x1008 + 4) = 0x0ffc → mem[8..b] = 00000ffc
+8 1 3 R4
+# AS4: at offset 0xc in .text, write absolute address of symbol 2 (helper); addend=0
+# after allocation: helper = 0x101c → mem[c..f] = 0000101c
+c 1 2 AS4
+# RS4: at offset 0x10 in .text, write PC-relative offset to symbol 3 (gvar); addend=0
+# after allocation: gvar = 0x2004 → 0x2004 - (0x1010 + 4) = 0x0ff0 → mem[10..13] = 00000ff0
+10 1 3 RS4
+# U2: at offset 0x14 in .text, write upper 16 bits of symbol 4 (gbuf)
+# after allocation: gbuf = 0x11e08 → (0x11e08 >> 16) & 0xffff = 0x0001 → mem[14..15] = 0001
+14 1 4 U2
+# L2: at offset 0x16 in .text, write lower 16 bits of symbol 4 (gbuf)
+# after allocation: gbuf = 0x11e08 → 0x11e08 & 0xffff = 0x1e08 → mem[16..17] = 1e08
+16 1 4 L2
+# data: hex-encoded bytes for P-flag segments (.text then .data; .bss has no data)
+# .text layout (0x1c = 28 bytes):
+#   [00-03]: 11223344  preamble
+#   [04-07]: 00000000  A4 slot  → patched to 00002000
+#   [08-0b]: 00000000  R4 slot  → patched to 00000ffc
+#   [0c-0f]: 00000000  AS4 slot → patched to 0000101c
+#   [10-13]: 00000000  RS4 slot → patched to 00000ff0
+#   [14-15]: 0000      U2 slot  → patched to 0001
+#   [16-17]: 0000      L2 slot  → patched to 1e08
+#   [18-1b]: aabbccdd  tail
+112233440000000000000000000000000000000000000000aabbccdd
+# .data: 4 bytes of initialized data
+deadbeef

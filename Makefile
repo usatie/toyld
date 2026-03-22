@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -299,6 +299,41 @@ test15:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 15 passed$(RESET)" || echo "$(RED)Test 15 failed$(RESET)"
+
+test16: TEST_DIR=tests/testcase16
+test16:
+	# Test 16 for project 7.1: combined test exercising all 6 relocation types in one link.
+	# main.lk has 6 relocations in .text targeting segments and symbols from both files.
+	# other.lk defines helper (.text), gvar (.data), and gbuf (.bss) — no relocations.
+	# main.lk's large .bss padding (0xfe00 bytes) pushes gbuf to 0x11e08,
+	# giving U2 a non-trivial upper half (0x0001) and L2 a non-trivial lower half (0x1e08).
+	#
+	# ┌──────────┬──────────────────────────────────────────────────────────────┬──────────┬────────────────────┐
+	# │   File   │                        .text (0x1c B)                        │  .data   │       .bss         │
+	# ├──────────┼──────────────────────────────────────────────────────────────┼──────────┼────────────────────┤
+	# │ main.lk  │ 4B body | A4 | R4 | AS4 | RS4 | U2(2B) | L2(2B) | 4B tail  │  4B data │ 0xfe00B padding    │
+	# ├──────────┼──────────────────────────────────────────────────────────────┼──────────┼────────────────────┤
+	# │ other.lk │ 4B body (helper)                                             │  4B gvar │ 4B (gbuf)          │
+	# └──────────┴──────────────────────────────────────────────────────────────┴──────────┴────────────────────┘
+	#
+	# After allocation:
+	#   main=0x1000, helper=0x101c, gvar=0x2004, gbuf=0x11e08
+	#
+	# main.lk relocations in .text —
+	#   (4  1 2 A4 ) → base(.data):          0x2000                           = 00002000
+	#   (8  1 3 R4 ) → .bss rel:             0x2008 - (0x1008+4) = 0x0ffc    = 00000ffc
+	#   (c  1 2 AS4) → helper abs:           0x101c + 0          = 0x101c    = 0000101c
+	#   (10 1 3 RS4) → gvar rel:             0x2004 - (0x1010+4) = 0x0ff0    = 00000ff0
+	#   (14 1 4 U2 ) → upper 16 of gbuf:     0x11e08 >> 16       = 0x0001    = 0001
+	#   (16 1 4 L2 ) → lower 16 of gbuf:     0x11e08 & 0xffff    = 0x1e08    = 1e08
+	#
+	# The expected merged output data:
+	# - .text: 11223344|00002000|00000ffc|0000101c|00000ff0|0001|1e08|aabbccdd|55667788
+	# - .data: deadbeef|99aabbcc
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 16 passed$(RESET)" || echo "$(RED)Test 16 failed$(RESET)"
 
 .PHONY: clean
 clean:
