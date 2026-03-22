@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -137,7 +137,7 @@ test10:
 	# - .text: 0011223344556677|deadbeef
 	# - .data: aaaaaaaaaaaa|00002014|bbbbbbbbbbbb|0000201c
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
 
@@ -169,7 +169,7 @@ test11:
 	# - .text: deadbeef|00000ff8|aabbccdd|00000ff4
 	# - .data: cafebabe|11223344
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 11 passed$(RESET)" || echo "$(RED)Test 11 failed$(RESET)"
 
@@ -208,7 +208,7 @@ test12:
 	# - .text: deadbeef|00001010|aabbccdd|00002004|11223344|00001000|aabbccdd|0000200c
 	# - .data: deadbeef|cafebabe
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 12 passed$(RESET)" || echo "$(RED)Test 12 failed$(RESET)"
 
@@ -241,7 +241,7 @@ test13:
 	# - .text: deadbeef|00000010|cafebabe|00000ff0|aabbccdd|00000fec|11223344|ffffffe0
 	# - .data: 05060708
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 13 passed$(RESET)" || echo "$(RED)Test 13 failed$(RESET)"
 
@@ -269,7 +269,7 @@ test14:
 	# - .text: cafebabe|1cd4|beef|11223344
 	# - .data: 05060708
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 14 passed$(RESET)" || echo "$(RED)Test 14 failed$(RESET)"
 
@@ -296,7 +296,7 @@ test15:
 	# - .text: cafebabe|dead|5678|11223344
 	# - .data: 05060708
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 15 passed$(RESET)" || echo "$(RED)Test 15 failed$(RESET)"
 
@@ -331,9 +331,41 @@ test16:
 	# - .text: 11223344|00002000|00000ffc|0000101c|00000ff0|0001|1e08|aabbccdd|55667788
 	# - .data: deadbeef|99aabbcc
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 16 passed$(RESET)" || echo "$(RED)Test 16 failed$(RESET)"
+
+test17: TEST_DIR=tests/testcase17
+test17:
+	# Test 17 for project 7.2: same structure as test 16, but all relocations written little-endian.
+	# Identical input files; only the expected byte order in the output differs.
+	#
+	# ┌──────────┬──────────────────────────────────────────────────────────────┬──────────┬────────────────────┐
+	# │   File   │                        .text (0x1c B)                        │  .data   │       .bss         │
+	# ├──────────┼──────────────────────────────────────────────────────────────┼──────────┼────────────────────┤
+	# │ main.lk  │ 4B body | A4 | R4 | AS4 | RS4 | U2(2B) | L2(2B) | 4B tail  │  4B data │ 0xfe00B padding    │
+	# ├──────────┼──────────────────────────────────────────────────────────────┼──────────┼────────────────────┤
+	# │ other.lk │ 4B body (helper)                                             │  4B gvar │ 4B (gbuf)          │
+	# └──────────┴──────────────────────────────────────────────────────────────┴──────────┴────────────────────┘
+	#
+	# After allocation:
+	#   main=0x1000, helper=0x101c, gvar=0x2004, gbuf=0x11e08
+	#
+	# main.lk relocations in .text (values identical to test 16, but stored little-endian) —
+	#   (4  1 2 A4 ) → 0x2000    → LE: 00200000
+	#   (8  1 3 R4 ) → 0x0ffc    → LE: fc0f0000
+	#   (c  1 2 AS4) → 0x101c    → LE: 1c100000
+	#   (10 1 3 RS4) → 0x0ff0    → LE: f00f0000
+	#   (14 1 4 U2 ) → 0x0001    → LE: 0100
+	#   (16 1 4 L2 ) → 0x1e08    → LE: 081e
+	#
+	# The expected merged output data:
+	# - .text: 11223344|00200000|fc0f0000|1c100000|f00f0000|0100|081e|aabbccdd|55667788
+	# - .data: deadbeef|99aabbcc
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 17 passed$(RESET)" || echo "$(RED)Test 17 failed$(RESET)"
 
 .PHONY: clean
 clean:

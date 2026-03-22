@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
     parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
     parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
+    parser.add_argument('--byteorder', choices=['big', 'little'], default='little', help='Specify byte order for output file (default: little)')
     return parser.parse_args()
 
 def is_object_file(filename):
@@ -36,7 +37,7 @@ def is_library_file(filename):
         magic = infile.read(8)
         return magic == b'LIBRARY '
 
-def link_objects(input_files, use_common, skip_relocations):
+def link_objects(input_files, use_common, skip_relocations, byteorder):
     # Input files may contain libraries (directory format), so we need to exclude them
     library_dirs = []
     library_files = []
@@ -64,7 +65,7 @@ def link_objects(input_files, use_common, skip_relocations):
         symbol.resolve_values(objs, gsymtab, out_segments)
         out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
         if not skip_relocations:
-            relocation.relocate(objs, gsymtab, gdata)
+            relocation.relocate(objs, gsymtab, gdata, byteorder)
         out_data = [v for v in gdata.values()]
     else:
         out_segments = objs[0].segments
@@ -111,7 +112,7 @@ def write_output(filename, link_results, options):
 
 def main():
     args = parse_args()
-    results = link_objects(args.input_files, args.common, args.skip_relocations)
+    results = link_objects(args.input_files, args.common, args.skip_relocations, args.byteorder)
     write_output(
         args.output,
         results,
