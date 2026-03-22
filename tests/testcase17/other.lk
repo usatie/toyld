@@ -1,0 +1,22 @@
+LINK
+3 3 0
+# segments: name base length flags
+.text 0 4 RP
+.data 0 4 RWP
+.bss 0 4 RW
+# symbols: name value seg_number type
+# symbol 1: helper — defined in .text at offset 0
+# after allocation: other.lk .text follows main.lk .text (0x1c bytes) → helper = 0x101c
+helper 0 1 D
+# symbol 2: gvar — defined in .data at offset 0
+# after allocation: other.lk .data follows main.lk .data (0x4 bytes) → gvar = 0x2004
+gvar 0 2 D
+# symbol 3: gbuf — defined in .bss at offset 0
+# after allocation: other.lk .bss follows main.lk .bss (0xfe00 bytes) → gbuf = 0x2008 + 0xfe00 = 0x11e08
+gbuf 0 3 D
+# relocations: (none)
+# data: hex-encoded bytes for P-flag segments (.text then .data; .bss has no data)
+# .text: 4B helper function body
+55667788
+# .data: gvar initialized to 0x99aabbcc
+99aabbcc

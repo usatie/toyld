@@ -1,0 +1,17 @@
+LINK
+3 4 6
+.text 1000 20 RP
+.data 2000 8 RWP
+.bss 2008 fe04 RW
+main 1000 0 D
+helper 101c 0 D
+gvar 2004 0 D
+gbuf 11e08 0 D
+4 1 2 A4
+8 1 3 R4
+c 1 2 AS4
+10 1 3 RS4
+14 1 4 U2
+16 1 4 L2
+1122334400200000fc0f00001c100000f00f00000100081eaabbccdd55667788
+deadbeef99aabbcc
