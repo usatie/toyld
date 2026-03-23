@@ -22,7 +22,6 @@ def parse_args():
     parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
     parser.add_argument('--skip-relocations', action='store_true', help='Skip processing relocations', default=False)
     parser.add_argument('--skip-data', action='store_true', help='Skip processing data section', default=False)
-    parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
     parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
     parser.add_argument('--byteorder', choices=['big', 'little'], default='little', help='Specify byte order for output file (default: little)')
     parser.add_argument('--wrap', '-w', action='append', help='Use a wrapper function for SYMBOL.', metavar='SYMBOL', default=[])
@@ -38,7 +37,7 @@ def is_library_file(filename):
         magic = infile.read(8)
         return magic == b'LIBRARY '
 
-def link_objects(input_files, use_common, skip_relocations, byteorder):
+def link_objects(input_files, byteorder):
     # Input files may contain libraries (directory format), so we need to exclude them
     library_dirs = []
     library_files = []
@@ -60,12 +59,11 @@ def link_objects(input_files, use_common, skip_relocations, byteorder):
     gsymtab = symbol.resolve_names(objs, lib_symtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab if use_common else {})
+    out_segments, gdata = storage.allocate(objs, gsymtab)
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
-    if not skip_relocations:
-        relocation.relocate(objs, gsymtab, gdata, byteorder)
+    relocation.relocate(objs, gsymtab, gdata, byteorder)
     out_data = [v for v in gdata.values()]
     out_relocations = []
 
@@ -122,7 +120,7 @@ def main():
         )
     else:
         # Multiple input files, need to link them together
-        results = link_objects(args.input_files, args.common, args.skip_relocations, args.byteorder)
+        results = link_objects(args.input_files, args.byteorder)
         write_output(
             args.output,
             results,
