@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--common', action='store_true', help='Use common symbol resolution strategy (assign common symbols to the end of the bss segment)', default=False)
     parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
     parser.add_argument('--byteorder', choices=['big', 'little'], default='little', help='Specify byte order for output file (default: little)')
+    parser.add_argument('--wrap', '-w', action='append', help='Use a wrapper function for SYMBOL.', metavar='SYMBOL', default=[])
     return parser.parse_args()
 
 def is_object_file(filename):

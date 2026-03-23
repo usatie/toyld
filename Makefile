@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -366,6 +366,45 @@ test17:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 17 passed$(RESET)" || echo "$(RED)Test 17 failed$(RESET)"
+
+test18: TEST_DIR=tests/testcase18
+test18:
+	# Test 18 for project 8.1: --wrap option wraps malloc
+	#
+	# Three input files exercise all wrap cases with both RS4 and AS4 relocations:
+	#   main.lk        — RS4 call + AS4 fn-ptr to malloc (undefined); both redirected to wrap_malloc
+	#   malloc.lk      — defines malloc; RS4 self-call + AS4 self-ptr; all redirected to wrap_malloc
+	#                    malloc itself renamed to real_malloc
+	#   wrap_malloc.lk — defines wrap_malloc; RS4 call to real_malloc
+	#
+	# ┌────────────────┬──────────────────────────────┬──────────────────────────────┐
+	# │     File       │       .text (8B/12B)         │       .data (8B)             │
+	# ├────────────────┼──────────────────────────────┼──────────────────────────────┤
+	# │ main.lk        │ body | RS4 call → malloc     │ data | AS4 fn-ptr → malloc   │
+	# ├────────────────┼──────────────────────────────┼──────────────────────────────┤
+	# │ malloc.lk      │ body | RS4 self-call→mallc   │ data | AS4 self-ptr → malloc │
+	# ├────────────────┼──────────────────────────────┼──────────────────────────────┤
+	# │ wrap_malloc.lk │ body | RS4 call → real_malloc│           (none)             │
+	# └────────────────┴──────────────────────────────┴──────────────────────────────┘
+	#
+	# After -w malloc and allocation:
+	#   main        = 0x1000  (.text[0x1000..0x1007],  8B)
+	#   real_malloc = 0x1008  (.text[0x1008..0x1013], 12B, malloc.lk renamed)
+	#   wrap_malloc = 0x1014  (.text[0x1014..0x101b],  8B)
+	#   .data: main.lk at 0x2000, malloc.lk at 0x2008
+	#
+	# RS4 patches (big-endian):
+	#   main.lk .text[4]       → wrap_malloc(0x1014) - (0x1004+4) = 0xc    → 0000000c
+	#   malloc.lk .text[4]     → wrap_malloc(0x1014) - (0x100c+4) = 0x4    → 00000004
+	#   wrap_malloc.lk .text[4]→ real_malloc(0x1008) - (0x1018+4) = -0x14  → ffffffec
+	#
+	# AS4 patches (big-endian):
+	#   main.lk .data[4]       → wrap_malloc(0x1014) + 0 = 0x1014           → 00001014
+	#   malloc.lk .data[4]     → wrap_malloc(0x1014) + 0 = 0x1014           → 00001014
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/malloc.lk $(TEST_DIR)/wrap_malloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 18 passed$(RESET)" || echo "$(RED)Test 18 failed$(RESET)"
 
 .PHONY: clean
 clean:
