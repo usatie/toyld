@@ -37,7 +37,7 @@ def is_library_file(filename):
         magic = infile.read(8)
         return magic == b'LIBRARY '
 
-def link_objects(input_files, byteorder):
+def link_objects(input_files, byteorder, wrap_symbols):
     # Input files may contain libraries (directory format), so we need to exclude them
     library_dirs = []
     library_files = []
@@ -120,7 +120,7 @@ def main():
         )
     else:
         # Multiple input files, need to link them together
-        results = link_objects(args.input_files, args.byteorder)
+        results = link_objects(args.input_files, args.byteorder, args.wrap)
         write_output(
             args.output,
             results,
