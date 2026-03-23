@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import Object, parse_objects
+from object import Object, parse_objects, parse_object
 import storage
 import symbol
 import relocation
@@ -59,20 +59,15 @@ def link_objects(input_files, use_common, skip_relocations, byteorder):
     gsymtab = symbol.resolve_names(objs, lib_symtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    if len(objs) > 1:
-        out_segments, gdata = storage.allocate(objs, gsymtab if use_common else {})
-        # Resolve symbol values
-        symbol.resolve_values(objs, gsymtab, out_segments)
-        out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
-        if not skip_relocations:
-            relocation.relocate(objs, gsymtab, gdata, byteorder)
-        out_data = [v for v in gdata.values()]
-    else:
-        out_segments = objs[0].segments
-        out_symbols = objs[0].symbols
-        out_data = objs[0].data
+    out_segments, gdata = storage.allocate(objs, gsymtab if use_common else {})
+    # Resolve symbol values
+    symbol.resolve_values(objs, gsymtab, out_segments)
+    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
+    if not skip_relocations:
+        relocation.relocate(objs, gsymtab, gdata, byteorder)
+    out_data = [v for v in gdata.values()]
+    out_relocations = []
 
-    out_relocations = [rel for o in objs for rel in o.relocations]
     return out_segments, out_symbols, out_relocations, out_data
 
 class WriteOptions:
@@ -112,16 +107,30 @@ def write_output(filename, link_results, options):
 
 def main():
     args = parse_args()
-    results = link_objects(args.input_files, args.common, args.skip_relocations, args.byteorder)
-    write_output(
-        args.output,
-        results,
-        WriteOptions(
-            skip_symbols=args.skip_symbols,
-            skip_relocations=args.skip_relocations,
-            skip_data=args.skip_data,
-        ),
-    )
+    if len(args.input_files) == 1:
+        # If only one input file, just copy it to the output (with optional skipping)
+        obj = parse_object(args.input_files[0])
+        write_output(
+            args.output,
+            (obj.segments, obj.symbols, obj.relocations, obj.data),
+            WriteOptions(
+                skip_symbols=args.skip_symbols,
+                skip_relocations=args.skip_relocations,
+                skip_data=args.skip_data,
+            ),
+        )
+    else:
+        # Multiple input files, need to link them together
+        results = link_objects(args.input_files, args.common, args.skip_relocations, args.byteorder)
+        write_output(
+            args.output,
+            results,
+            WriteOptions(
+                skip_symbols=args.skip_symbols,
+                skip_relocations=args.skip_relocations,
+                skip_data=args.skip_data,
+            ),
+        )
 
 
 
