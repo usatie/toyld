@@ -85,7 +85,7 @@ class Symbol:
         return self.sym_type == 'U' and self.value == 0
 
     def __repr__(self):
-        return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type})"
+        return f"Symbol(name={self.name}, value=0x{self.value:x}, seg_number=0x{self.seg_number:x}, sym_type={self.sym_type}, number={self.number})"
 
 class Relocation:
     def __init__(self, loc, seg_number, ref, rel_type, extra_fields):

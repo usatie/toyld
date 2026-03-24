@@ -150,3 +150,22 @@ def resolve_values(objs, gsymtab, out_segments):
         seg = gsym.obj.segments[local_sym.seg_number - 1]
         gsym.value = seg.assigned_address + local_sym.value
 
+
+def apply_wraps(objs, wrap_symbols):
+    for w in wrap_symbols:
+        for o in objs:
+            if w not in o.symbols:
+                continue
+            sym = o.symbols[w]
+            if sym.sym_type == 'D':
+                # Add real_name as a new symbol (to be not referenced internally)
+                real_sym = Symbol(f'real_{sym.name}', sym.value, sym.seg_number, 'D', len(o.symbols) + 1)
+                o.symbols[real_sym.name] = real_sym
+                # Change the original symbol to be a wrapper (to be referenced internally)
+                sym.name = f'wrap_{sym.name}'
+                sym.sym_type = 'U'
+                o.symbols = {(sym.name if s == w else s): v for s, v in o.symbols.items()}
+            elif sym.sym_type == 'U':
+                sym.name = f'wrap_{sym.name}'
+                o.symbols = {(sym.name if s == w else s): v for s, v in o.symbols.items()}
+        

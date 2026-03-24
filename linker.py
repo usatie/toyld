@@ -56,6 +56,7 @@ def link_objects(input_files, byteorder, wrap_symbols):
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
 
     # Resolve symbol names
+    symbol.apply_wraps(objs, wrap_symbols)
     gsymtab = symbol.resolve_names(objs, lib_symtab)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
