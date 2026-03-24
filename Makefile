@@ -457,7 +457,7 @@ test20:
 
 test21: TEST_DIR=tests/testcase21
 test21:
-	# Test 21 for symwrap.py: wrap an undefined and a defined symbol across two object files.
+	# Test 21 for project 8.2: Standalone symbol wrapper program for object files
 	#
 	# caller.lk defines main and has an undefined reference to malloc (AS4 reloc).
 	# impl.lk defines malloc.

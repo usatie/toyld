@@ -28,6 +28,7 @@ This project implements a linker and librarian that process a simple text-based 
 | 8.1 | Ch. 8 | linker | Symbol wrapping (`--wrap`) against object files |
 | 8.1 | Ch. 8 | linker | Symbol wrapping against directory-format libraries |
 | 8.1 | Ch. 8 | linker | Symbol wrapping against file-format libraries |
+| 8.2 | Ch. 8 | symwrap | Standalone symbol wrapper program for object files |
 
 ## Object File Format (`.lk`)
 
@@ -100,6 +101,25 @@ bar 20 2 U
 
 Output is always written to `a.out.lk`.
 
+### Symbol Wrapper
+
+```sh
+./symwrap.py <input_files...> [--wrap SYM] [-o <output_dir>]
+```
+
+Applies `--wrap` semantics to object files without linking them. Each input file is rewritten and written to the output directory with a `wrapped_` prefix.
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--wrap SYM`, `-w SYM` | Symbol to wrap (can be specified multiple times) |
+| `--output-dir`, `-o` | Output directory for wrapped files (default: current directory) |
+
+For each wrapped symbol `SYM`:
+- Undefined references to `SYM` are renamed to `wrap_SYM`.
+- A defined `SYM` is renamed to `real_SYM`, and an undefined `wrap_SYM` symbol is inserted.
+
 ### Librarian
 
 ```sh
@@ -153,7 +173,7 @@ d 38 foo helper
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test20)
+make           # Run all tests (test1–test21)
 make test1     # Run individual test
 ```
 
@@ -276,6 +296,13 @@ Mirror of Test 19 using a single-file archive (`--format file`) instead of a dir
 ```sh
 ./librarian.py --format file --output build/libmalloc.lk tests/testcase19/malloc.lk
 ./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.lk --byteorder big -w malloc
+```
+
+### Test 21 — Standalone symbol wrapper (Project 8.2)
+Uses `symwrap.py` to rewrite two object files with `--wrap malloc` without linking. `caller.lk` (defines `main`, references `malloc`) has its undefined `malloc` renamed to `wrap_malloc`. `impl.lk` (defines `malloc`) has `malloc` renamed to `real_malloc` and a new undefined `wrap_malloc` symbol inserted. Each output is written with a `wrapped_` prefix.
+
+```sh
+./symwrap.py --wrap malloc tests/testcase21/caller.lk tests/testcase21/impl.lk -o build/symwrap
 ```
 
 ## Storage Allocation Strategy
