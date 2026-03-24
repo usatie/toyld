@@ -1,0 +1,19 @@
+LINK
+1 2 1
+# segments: name base length flags
+.text 0 c RP
+# symbols: name value seg_number type
+# symbol 1: wrap_malloc — defined in .text at offset 0 (the wrapper)
+wrap_malloc 0 1 D
+# symbol 2: real_malloc — undefined (defined in malloc.lk, renamed from malloc by -w malloc)
+real_malloc 0 0 U
+# relocations: loc seg ref type
+# RS4: at offset 0x4 in .text, call real_malloc (sym 2)
+# after wrap + allocation: real_malloc = 0x1018, this .text starts at 0x100c
+# value = 0x1018 - (0x1010 + 4) = 0x4 → mem[4..7] = 00000004
+4 1 2 RS4
+# data: .text (12 bytes)
+#   [00-03]: 55667788  wrapper function body
+#   [04-07]: 00000000  RS4 call slot → patched to 00000004
+#   [08-0b]: eeff0011  tail
+5566778800000000eeff0011

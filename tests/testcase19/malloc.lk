@@ -1,0 +1,25 @@
+LINK
+2 1 2
+# segments: name base length flags
+.text 0 c RP
+.data 0 8 RWP
+# symbols: name value seg_number type
+# symbol 1: malloc — defined in .text at offset 0
+# -w malloc renames this to real_malloc
+malloc 0 1 D
+# relocations: loc seg ref type
+# RS4: at offset 0x4 in .text, self-call to malloc (sym 1)
+# -w malloc: sym 1 renamed to real_malloc; this reloc redirected to wrap_malloc (added as sym 2)
+# after wrap + allocation: wrap_malloc = 0x1014, this .text starts at 0x1008
+# value = 0x1014 - (0x1008 + 4 + 4) = 0x4 → mem[4..7] = 00000004
+4 1 1 RS4
+# AS4: at offset 0x4 in .data, self-pointer to malloc (sym 1)
+# -w malloc: redirected to wrap_malloc (sym 2) like the RS4 above
+# after wrap + allocation: wrap_malloc = 0x1014
+# value = 0x1014 + 0 = 0x1014 → mem[4..7] = 00001014
+4 2 1 AS4
+# data: .text then .data
+# .text (12 bytes): [00-03] body | [04-07] RS4 self-call slot → patched to 00000004 | [08-0b] tail
+aabbccdd00000000eeff0011
+# .data (8 bytes): [00-03] data  | [04-07] AS4 self-ptr slot → patched to 00001014
+cafebabe00000000

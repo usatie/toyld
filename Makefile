@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -405,6 +405,55 @@ test18:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/malloc.lk $(TEST_DIR)/wrap_malloc.lk --output $(OUT) --byteorder big -w malloc \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 18 passed$(RESET)" || echo "$(RED)Test 18 failed$(RESET)"
+
+test19: SRC_DIR=tests/testcase19
+test19: CMP_DIR=tests/testcase19
+test19:
+	# Test 19 for project 8.1: --wrap option with a directory-format library
+	#
+	# Same three-module wrap scenario as test 18, but malloc.lk is loaded from a
+	# directory library instead of being a direct object file.  The linker must
+	# apply wrap semantics to the library module after pulling it in.
+	#
+	# Input files in tests/testcase19/:
+	#   main.lk        — 12B .text (body|RS4 call→malloc|tail), 8B .data (body|AS4 fn-ptr→malloc)
+	#   wrap_malloc.lk — 12B .text (body|RS4 call→real_malloc|tail)
+	#   libmalloc.lk/  — directory library containing malloc.lk (same as testcase18)
+	#                    malloc (D) → renamed real_malloc; wrap_malloc added as U
+	#
+	# After -w malloc and allocation:
+	#   main        = 0x1000  (12B .text)
+	#   wrap_malloc = 0x100c  (12B .text, direct object)
+	#   real_malloc = 0x1018  (12B .text, loaded from library)
+	#   .data: main.lk at 0x2000, malloc.lk at 0x2008
+	#
+	# RS4 patches (big-endian):
+	#   main.lk .text[4]        → wrap_malloc(0x100c) - (0x1004+4) =  0x4    → 00000004
+	#   wrap_malloc.lk .text[4] → real_malloc(0x1018) - (0x1010+4) =  0x4    → 00000004
+	#   malloc.lk .text[4]      → wrap_malloc(0x100c) - (0x101c+4) = -0x14   → ffffffec
+	#
+	# AS4 patches (big-endian):
+	#   main.lk .data[4]   → wrap_malloc(0x100c) → 0000100c
+	#   malloc.lk .data[4] → wrap_malloc(0x100c) → 0000100c
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
+		&& echo "$(GREEN)Test 19 passed$(RESET)" || echo "$(RED)Test 19 failed$(RESET)"
+
+test20: SRC_DIR=tests/testcase19
+test20: CMP_DIR=tests/testcase20
+test20:
+	# Test 20 for project 8.1: --wrap option with a file-format library
+	#
+	# Mirror of test 19 using a single-file archive instead of a directory library.
+	# The linker must seek to the module's offset inside the archive, load malloc.lk,
+	# and apply the same wrap semantics.  Expected output is identical to test 19.
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
+		&& echo "$(GREEN)Test 20 passed$(RESET)" || echo "$(RED)Test 20 failed$(RESET)"
 
 .PHONY: clean
 clean:

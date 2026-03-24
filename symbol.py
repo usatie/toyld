@@ -117,7 +117,7 @@ def search_module(symbol_name, libsymtab):
         sys.exit(1)
     return libsymtab[symbol_name]
 
-def resolve_names(objs, libsymtab):
+def resolve_names(objs, lib_symtab, wrap_symbols):
     gsymtab = {}
     to_visit = [o for o in objs]
 
@@ -133,13 +133,22 @@ def resolve_names(objs, libsymtab):
         if undefined_symbols:
             # we will resolve undefined symbols one at a time to avoid loading the same library module multiple times if it defines multiple symbols
             gsym = undefined_symbols[0]
+            is_wrapped_symbol = False
+            search_key = gsym.name
+            if gsym.name.startswith('real_') or gsym.name.startswith('wrap_'):
+                unwrapped_name = gsym.name[5:]
+                is_wrapped_symbol = unwrapped_name in wrap_symbols
+                search_key = unwrapped_name
+
             # load the library module and add it to the list of objects to visit
-            mod = search_module(gsym.name, libsymtab)
-            dprint(f"Resolving symbol '{gsym.name}' from library file '{libsymtab[gsym.name]}'")
+            mod = search_module(search_key, lib_symtab)
+            dprint(f"Resolving symbol '{search_key}' from library file '{lib_symtab[search_key]}'")
             if mod.format == 'dir':
                 lib_obj = parse_object(mod.filename)
             elif mod.format == 'file':
                 lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size)
+            if is_wrapped_symbol:
+                apply_wraps([lib_obj], wrap_symbols)
             to_visit.append(lib_obj)
             objs.append(lib_obj)
     return gsymtab

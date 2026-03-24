@@ -1,0 +1,10 @@
+LINK
+3 3 0
+.text 1000 24 RP
+.data 2000 10 RWP
+.bss 2010 0 RW
+main 1000 0 D
+wrap_malloc 100c 0 D
+real_malloc 1018 0 D
+1122334400000004aabbccdd5566778800000004eeff0011aabbccddffffffeceeff0011
+deadbeef0000100ccafebabe0000100c

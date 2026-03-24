@@ -1,0 +1,24 @@
+LINK
+2 2 2
+# segments: name base length flags
+.text 0 c RP
+.data 0 8 RWP
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: malloc — undefined (in library, wrapped to wrap_malloc by -w malloc)
+malloc 0 0 U
+# relocations: loc seg ref type
+# RS4: at offset 0x4 in .text, call malloc (sym 2) → redirected to wrap_malloc
+# after wrap + allocation: wrap_malloc = 0x100c, this .text starts at 0x1000
+# value = 0x100c - (0x1004 + 4) = 0x4 → mem[4..7] = 00000004
+4 1 2 RS4
+# AS4: at offset 0x4 in .data, store function pointer to malloc (sym 2) → redirected to wrap_malloc
+# after wrap + allocation: wrap_malloc = 0x100c
+# value = 0x100c → mem[4..7] = 0000100c
+4 2 2 AS4
+# data: .text then .data
+# .text (12 bytes): [00-03] body | [04-07] RS4 call slot → patched to 00000004 | [08-0b] tail
+1122334400000000aabbccdd
+# .data (8 bytes): [00-03] data  | [04-07] AS4 fn-ptr slot → patched to 0000100c
+deadbeef00000000
