@@ -20,9 +20,9 @@ class Object:
         # Magic number
         contents += b'LINK\n'
         # Header
-        num_segments = self.num_segments
-        num_symbols = 0 if skip_symbols else self.num_symbols
-        num_relocations = 0 if skip_relocations else self.num_relocations
+        num_segments = len(self.segments)
+        num_symbols = 0 if skip_symbols else len(self.symbols)
+        num_relocations = 0 if skip_relocations else len(self.relocations)
         contents += f"{num_segments:x} {num_symbols:x} {num_relocations:x}\n".encode()
         # Segments
         for s in self.segments:
