@@ -23,6 +23,11 @@ This project implements a linker and librarian that process a simple text-based 
 | 7.1 | Ch. 7 | linker | RS4 relocation — PC-relative symbol reference |
 | 7.1 | Ch. 7 | linker | U2 relocation — upper 16-bit symbol address |
 | 7.1 | Ch. 7 | linker | L2 relocation — lower 16-bit symbol address |
+| 7.1 | Ch. 7 | linker | Combined all 6 relocation types, big-endian |
+| 7.2 | Ch. 7 | linker | Little-endian byte order (`--byteorder little`) |
+| 8.1 | Ch. 8 | linker | Symbol wrapping (`--wrap`) against object files |
+| 8.1 | Ch. 8 | linker | Symbol wrapping against directory-format libraries |
+| 8.1 | Ch. 8 | linker | Symbol wrapping against file-format libraries |
 
 ## Object File Format (`.lk`)
 
@@ -89,6 +94,8 @@ bar 20 2 U
 | `--skip-relocations` | Omit relocation entries from output |
 | `--skip-data` | Omit data section from output |
 | `--common` | Allocate common blocks at the end of `.bss` |
+| `--byteorder big\|little` | Byte order for relocation patches (default: `little`) |
+| `--wrap SYM`, `-w SYM` | Redirect references to `SYM` → `wrap_SYM`; rename `SYM` → `real_SYM` |
 | `--debug` | Print debug info to stderr |
 
 Output is always written to `a.out.lk`.
@@ -146,7 +153,7 @@ d 38 foo helper
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test15)
+make           # Run all tests (test1–test20)
 make test1     # Run individual test
 ```
 
@@ -233,6 +240,43 @@ Links two object files where one contains a `U2` relocation. The upper 16 bits o
 
 ### Test 15 — L2 relocation (Project 7.1)
 Mirror of Test 14 using `L2`. The lower 16 bits of the referenced symbol's address are written as a big-endian 2-byte value into the slot.
+
+### Test 16 — All 6 relocation types combined, big-endian (Project 7.1)
+Links two object files where `main.lk` exercises all six relocation types (`A4`, `R4`, `AS4`, `RS4`, `U2`, `L2`) in a single `.text` section. A large `.bss` padding block pushes `gbuf` to a high address so that `U2` and `L2` produce visually distinct non-trivial values.
+
+```sh
+./linker.py tests/testcase16/main.lk tests/testcase16/other.lk --byteorder big
+```
+
+### Test 17 — Little-endian byte order (Project 7.2)
+Same structure and computed values as Test 16, but patches are written in little-endian byte order (the default). Verifies that `--byteorder little` produces byte-swapped output for all relocation widths.
+
+```sh
+./linker.py tests/testcase17/main.lk tests/testcase17/other.lk
+```
+
+### Test 18 — `--wrap` with object files (Project 8.1)
+Links `main.lk`, `malloc.lk`, and `wrap_malloc.lk` with `-w malloc`. All references to `malloc` are redirected to `wrap_malloc`; the definition of `malloc` is renamed to `real_malloc`. Covers both `RS4` and `AS4` relocations in `.text` and `.data`.
+
+```sh
+./linker.py tests/testcase18/{main,malloc,wrap_malloc}.lk --byteorder big -w malloc
+```
+
+### Test 19 — `--wrap` with a directory-format library (Project 8.1)
+Same three-module wrap scenario as Test 18, but `malloc.lk` is loaded from a directory-format library. Verifies that wrap semantics are applied to library modules pulled in during symbol resolution.
+
+```sh
+./librarian.py --output build/libmalloc.lk tests/testcase19/malloc.lk
+./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.lk --byteorder big -w malloc
+```
+
+### Test 20 — `--wrap` with a file-format library (Project 8.1)
+Mirror of Test 19 using a single-file archive (`--format file`) instead of a directory library. The linker seeks to the module's offset inside the archive, loads `malloc.lk`, and applies wrap semantics. Expected output is identical to Test 19.
+
+```sh
+./librarian.py --format file --output build/libmalloc.lk tests/testcase19/malloc.lk
+./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.lk --byteorder big -w malloc
+```
 
 ## Storage Allocation Strategy
 
