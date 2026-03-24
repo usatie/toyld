@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20 test21
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -454,6 +454,24 @@ test20:
 		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& echo "$(GREEN)Test 20 passed$(RESET)" || echo "$(RED)Test 20 failed$(RESET)"
+
+test21: TEST_DIR=tests/testcase21
+test21:
+	# Test 21 for symwrap.py: wrap an undefined and a defined symbol across two object files.
+	#
+	# caller.lk defines main and has an undefined reference to malloc (AS4 reloc).
+	# impl.lk defines malloc.
+	#
+	# After --wrap malloc:
+	#   caller.lk: malloc (U) → wrap_malloc (U)   — reloc ref unchanged, header correct
+	#   impl.lk:   malloc (D) → wrap_malloc (U) + real_malloc (D) — num_symbols must be 2
+	#
+	# wrapped_caller.lk: num_symbols stays 2 (main + wrap_malloc), reloc still refs sym 2
+	# wrapped_impl.lk:   num_symbols must be updated to 2 (wrap_malloc U + real_malloc D)
+	rm -rf $(BUILD_DIR)/symwrap && mkdir -p $(BUILD_DIR)/symwrap \
+		&& ./symwrap.py --wrap malloc $(TEST_DIR)/caller.lk $(TEST_DIR)/impl.lk -o $(BUILD_DIR)/symwrap \
+		&& diff -r $(BUILD_DIR)/symwrap $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 21 passed$(RESET)" || echo "$(RED)Test 21 failed$(RESET)"
 
 .PHONY: clean
 clean:

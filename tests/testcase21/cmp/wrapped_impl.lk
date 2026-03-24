@@ -1,0 +1,6 @@
+LINK
+1 2 0
+.text 0 4 RP
+wrap_malloc 0 1 U
+real_malloc 0 1 D
+aabbccdd

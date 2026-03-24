@@ -1,0 +1,11 @@
+LINK
+1 1 0
+# segments: name base length flags
+.text 0 4 RP
+# symbols: name value seg_number type
+# symbol 1: malloc — defined in .text at offset 0
+# --wrap malloc renames this to real_malloc and introduces wrap_malloc as undefined
+malloc 0 1 D
+# data: .text (4 bytes)
+#   [00-03]: aabbccdd  function body
+aabbccdd

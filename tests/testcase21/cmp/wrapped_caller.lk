@@ -1,0 +1,7 @@
+LINK
+1 2 1
+.text 0 8 RP
+main 0 1 D
+wrap_malloc 0 0 U
+4 1 2 AS4
+1122334400000000

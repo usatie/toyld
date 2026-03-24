@@ -1,0 +1,17 @@
+LINK
+1 2 1
+# segments: name base length flags
+.text 0 8 RP
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: malloc — undefined (will be wrapped to wrap_malloc by --wrap malloc)
+malloc 0 0 U
+# relocations: loc seg ref type
+# AS4: at offset 0x4 in .text, store function pointer to malloc (sym 2)
+# --wrap malloc redirects this reference to wrap_malloc
+4 1 2 AS4
+# data: .text (8 bytes)
+#   [00-03]: 11223344  body
+#   [04-07]: 00000000  AS4 fn-ptr slot
+1122334400000000
