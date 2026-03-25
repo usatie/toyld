@@ -166,7 +166,7 @@ mem[0x4] = 0x1050 - 0x3000 = -0x1FB0  (stored as signed 32-bit)
 
 ### 4. ER4 — Executable Relative (4 bytes)
 
-**Description:** The 4 bytes at `loc` hold an address relative to the beginning of segment `seg`. This entry is **carried through to the output file as-is** — the OS loader will patch it at load time by adding the actual load base address.
+**Description:** The 4 bytes at `loc` hold an address relative to the beginning of the executable. This entry is **carried through to the output file as-is** — the OS loader will patch it at load time by adding the actual load base address.
 
 | Field | Role |
 |-------|------|

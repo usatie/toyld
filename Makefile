@@ -484,7 +484,7 @@ test22:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 0x10 + other.lk 0x8 = 0x18 bytes)
-	#   .got:  0x2000 (8 bytes: GOT[0]=gfunc=0x1010, GOT[1]=gvar=0x2008)
+	#   .got:  0x2000 (8 bytes: GOT[0]=gfunc exec-rel=0x10, GOT[1]=gvar exec-rel=0x1008)
 	#   .data: 0x2008 (other.lk 4 bytes)
 	#
 	# GP4 patches:
@@ -492,8 +492,8 @@ test22:
 	#   main.lk .text[c] → GOT offset of gvar  = 4 → 00000004
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x1010)
-	#   4 2 0 ER4  (GOT[1] at .got offset 4, contains absolute 0x2008)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gfunc(0x1010)-0x1000 = 0x10)
+	#   4 2 0 ER4  (GOT[1] at .got offset 4, exec-relative: gvar(0x2008)-0x1000  = 0x1008)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -508,7 +508,7 @@ test23:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 0x10 bytes only)
-	#   .got:  0x2000 (4 bytes: GOT[0]=gvar=0x2004)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gvar exec-rel=0x1004)
 	#   .data: 0x2004 (other.lk 4 bytes)
 	#
 	# GA4 patch at .text[4]:
@@ -518,7 +518,7 @@ test23:
 	#   GOT offset of gvar = 0 → 00000000
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x2004)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gvar(0x2004)-0x1000 = 0x1004)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -533,7 +533,7 @@ test24:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 8 bytes only)
-	#   .got:  0x2000 (4 bytes: GOT[0]=gext=0x200c)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gext exec-rel=0x100c)
 	#   .data: 0x2004 (main.lk 8 bytes + other.lk 4 bytes = 0xc bytes)
 	#
 	# GP4 patch at .text[4]:
@@ -543,7 +543,7 @@ test24:
 	#   mem[0] = base(.data) + 0 - GOT_base = 0x2004 - 0x2000 = 4 → 00000004
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x200c)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gext(0x200c)-0x1000 = 0x100c)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -563,14 +563,14 @@ test25:
 	#   .data: 0x2000 (main.lk 8 bytes)
 	#
 	# A4 patch at .data[0] (ref = seg 1 = .text):
-	#   mem[0] = 0x1000 → 00001000
+	#   mem[0] = exec-relative: .text(0x1000)-0x1000 = 0x0 → 00000000
 	#
 	# AS4 patch at .data[4] (ref = sym func, addend = 0):
-	#   mem[4] = func = 0x1008 → 00001008
+	#   mem[4] = exec-relative: func(0x1008)-0x1000 = 0x8 → 00000008
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (.data offset 0, contains absolute 0x1000)
-	#   4 2 0 ER4  (.data offset 4, contains absolute 0x1008)
+	#   0 2 0 ER4  (.data offset 0, exec-relative value 0x0)
+	#   4 2 0 ER4  (.data offset 4, exec-relative value 0x8)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
