@@ -12,7 +12,7 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20 test21
+all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20 test21 test22 test23 test24 test25
 
 test1: TEST_DIR=tests/testcase1
 test1:
@@ -472,6 +472,109 @@ test21:
 		&& ./symwrap.py --wrap malloc $(TEST_DIR)/caller.lk $(TEST_DIR)/impl.lk -o $(BUILD_DIR)/symwrap \
 		&& diff -r $(BUILD_DIR)/symwrap $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 21 passed$(RESET)" || echo "$(RED)Test 21 failed$(RESET)"
+
+test22: TEST_DIR=tests/testcase22
+test22:
+	# Test 22 for project 8.3: GP4 — GOT pointer relocation
+	#
+	# main.lk references two external symbols (gfunc in .text, gvar in .data) via GP4.
+	# The linker builds a 2-entry GOT and stores each symbol's GOT-relative offset at
+	# the relocation site.  Both GOT entries contain absolute addresses → two ER4 entries
+	# in the output.
+	#
+	# After allocation:
+	#   .text: 0x1000 (main.lk 0x10 + other.lk 0x8 = 0x18 bytes)
+	#   .got:  0x2000 (8 bytes: GOT[0]=gfunc=0x1010, GOT[1]=gvar=0x2008)
+	#   .data: 0x2008 (other.lk 4 bytes)
+	#
+	# GP4 patches:
+	#   main.lk .text[4] → GOT offset of gfunc = 0 → 00000000
+	#   main.lk .text[c] → GOT offset of gvar  = 4 → 00000004
+	#
+	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x1010)
+	#   4 2 0 ER4  (GOT[1] at .got offset 4, contains absolute 0x2008)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 22 passed$(RESET)" || echo "$(RED)Test 22 failed$(RESET)"
+
+test23: TEST_DIR=tests/testcase23
+test23:
+	# Test 23 for project 8.3: GA4 — distance to GOT
+	#
+	# main.lk uses GA4 to store the PC-relative distance to the GOT at offset 4 in
+	# .text, and GP4 to get the GOT-relative offset of an external variable gvar.
+	#
+	# After allocation:
+	#   .text: 0x1000 (main.lk 0x10 bytes only)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gvar=0x2004)
+	#   .data: 0x2004 (other.lk 4 bytes)
+	#
+	# GA4 patch at .text[4]:
+	#   mem[4] = GOT_base - (seg.start + loc) = 0x2000 - (0x1000 + 4) = 0xffc → 00000ffc
+	#
+	# GP4 patch at .text[c]:
+	#   GOT offset of gvar = 0 → 00000000
+	#
+	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x2004)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 23 passed$(RESET)" || echo "$(RED)Test 23 failed$(RESET)"
+
+test24: TEST_DIR=tests/testcase24
+test24:
+	# Test 24 for project 8.3: GR4 — GOT-relative segment address
+	#
+	# main.lk uses GR4 to replace a segment-start address with its GOT-relative offset,
+	# and GP4 to reference an external symbol gext (which creates the GOT).
+	#
+	# After allocation:
+	#   .text: 0x1000 (main.lk 8 bytes only)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gext=0x200c)
+	#   .data: 0x2004 (main.lk 8 bytes + other.lk 4 bytes = 0xc bytes)
+	#
+	# GP4 patch at .text[4]:
+	#   GOT offset of gext = 0 → 00000000
+	#
+	# GR4 patch at .data[0] (ref = main.lk .data, addend = 0):
+	#   mem[0] = base(.data) + 0 - GOT_base = 0x2004 - 0x2000 = 4 → 00000004
+	#
+	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, contains absolute 0x200c)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 24 passed$(RESET)" || echo "$(RED)Test 24 failed$(RESET)"
+
+test25: TEST_DIR=tests/testcase25
+test25:
+	# Test 25 for project 8.3: ER4 output from A4/AS4 inputs
+	#
+	# main.lk has an A4 (absolute segment ref) and an AS4 (absolute symbol ref) into
+	# its .data segment.  No GP4 → no GOT.  The linker must emit ER4 relocations in the
+	# output for every location whose final value is an absolute address, so that a
+	# loader can fix them up if the file is mapped at a non-nominal address.
+	#
+	# After allocation:
+	#   .text: 0x1000 (main.lk 8 + other.lk 8 = 0x10 bytes)
+	#   .data: 0x2000 (main.lk 8 bytes)
+	#
+	# A4 patch at .data[0] (ref = seg 1 = .text):
+	#   mem[0] = 0x1000 → 00001000
+	#
+	# AS4 patch at .data[4] (ref = sym func, addend = 0):
+	#   mem[4] = func = 0x1008 → 00001008
+	#
+	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
+	#   0 2 0 ER4  (.data offset 0, contains absolute 0x1000)
+	#   4 2 0 ER4  (.data offset 4, contains absolute 0x1008)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& echo "$(GREEN)Test 25 passed$(RESET)" || echo "$(RED)Test 25 failed$(RESET)"
 
 .PHONY: clean
 clean:

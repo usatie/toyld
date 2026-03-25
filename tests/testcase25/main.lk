@@ -1,0 +1,22 @@
+LINK
+2 2 2
+# segments: name base length flags
+.text 0 8 RP
+.data 0 8 RWP
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: func — undefined (defined in other.lk .text)
+func 0 0 U
+# relocations: loc seg ref type
+# A4: at offset 0 in .data (seg 2), write absolute base address of segment 1 (.text)
+# after allocation: .text at 0x1000 → mem[0] = 00001000; output ER4 marks this location
+0 2 1 A4
+# AS4: at offset 4 in .data (seg 2), write absolute address of symbol func (sym 2); addend=0
+# after allocation: func=0x1008 → mem[4] = 00001008; output ER4 marks this location
+4 2 2 AS4
+# data: .text (8 bytes) then .data (8 bytes)
+# .text: dummy body
+1122334455667788
+# .data: [0..3] A4 slot (patched to 00001000) | [4..7] AS4 slot (patched to 00001008)
+0000000000000000

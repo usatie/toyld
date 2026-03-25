@@ -1,0 +1,19 @@
+LINK
+1 2 2
+# segments: name base length flags
+.text 0 10 RP
+# symbols: name value seg_number type
+# symbol 1: main — defined in .text at offset 0
+main 0 1 D
+# symbol 2: gvar — undefined (defined in other.lk)
+gvar 0 0 U
+# relocations: loc seg ref type
+# GA4: at offset 4 in .text (seg 1), store distance from (loc+4) to the GOT base
+# after allocation: GOT at 0x2000, loc_vaddr=0x1004 → mem[4] = 0x2000 - (0x1004+4) = 0xff8
+4 1 0 GA4
+# GP4: at offset c in .text (seg 1), store GOT-relative offset of GOT entry for gvar (sym 2)
+# gvar is the only GOT entry at GOT offset 0 → mem[c] = 00000000
+c 1 2 GP4
+# data: hex-encoded bytes for .text (0x10 = 16 bytes)
+# [0..3] body | [4..7] GA4 slot (→GOT dist, patched to 00000ff8) | [8..b] body | [c..f] GP4 slot (→gvar, patched to 00000000)
+deadbeef00000000cafebabe00000000

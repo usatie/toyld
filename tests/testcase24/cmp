@@ -1,0 +1,11 @@
+LINK
+3 2 1
+.text 1000 8 RP
+.got 2000 4 RWP
+.data 2004 c RWP
+main 1000 0 D
+gext 200c 0 D
+0 2 0 ER4
+1122334400000000
+0000200c
+00000004cafebabeaabbccdd

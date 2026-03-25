@@ -1,0 +1,13 @@
+LINK
+3 3 2
+.text 1000 18 RP
+.got 2000 8 RWP
+.data 2008 4 RWP
+main 1000 0 D
+gfunc 1010 0 D
+gvar 2008 0 D
+0 2 0 ER4
+4 2 0 ER4
+deadbeef00000000cafebabe000000041122334455667788
+0000101000002008
+aabbccdd

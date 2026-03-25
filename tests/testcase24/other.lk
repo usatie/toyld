@@ -1,0 +1,11 @@
+LINK
+1 2 0
+# segments: name base length flags
+.data 0 4 RWP
+# symbols: name value seg_number type
+# symbol 1: gext — defined in .data at offset 0
+gext 0 1 D
+# symbol 2: main — undefined (defined in main.lk)
+main 0 0 U
+# data: .data (4 bytes)
+aabbccdd

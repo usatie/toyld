@@ -1,0 +1,11 @@
+LINK
+3 2 1
+.text 1000 10 RP
+.got 2000 4 RWP
+.data 2004 4 RWP
+main 1000 0 D
+gvar 2004 0 D
+0 2 0 ER4
+deadbeef00000ffccafebabe00000000
+00002004
+deadf00d

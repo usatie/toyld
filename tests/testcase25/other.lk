@@ -1,0 +1,11 @@
+LINK
+1 2 0
+# segments: name base length flags
+.text 0 8 RP
+# symbols: name value seg_number type
+# symbol 1: func — defined in .text at offset 0
+func 0 1 D
+# symbol 2: main — undefined (defined in main.lk)
+main 0 0 U
+# data: .text (8 bytes)
+aabbccddeeff0011

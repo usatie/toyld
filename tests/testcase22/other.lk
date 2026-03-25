@@ -1,0 +1,15 @@
+LINK
+2 3 0
+# segments: name base length flags
+.text 0 8 RP
+.data 0 4 RWP
+# symbols: name value seg_number type
+# symbol 1: gfunc — defined in .text at offset 0
+gfunc 0 1 D
+# symbol 2: gvar — defined in .data at offset 0
+gvar 0 2 D
+# symbol 3: main — undefined (defined in main.lk)
+main 0 0 U
+# data: .text then .data
+1122334455667788
+aabbccdd
