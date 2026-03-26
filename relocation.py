@@ -39,6 +39,14 @@ def _relocate_l2(rel, obj, gsymtab, seg_data, offset, byteorder):
     abs_addr = _resolve_symbol_addr(rel, obj, gsymtab)
     seg_data[offset:offset+2] = (abs_addr & 0xffff).to_bytes(2, byteorder=byteorder)
 
+def _relocate_gp4(rel, obj, gsymtab, seg_data, offset, gdata, byteorder):
+    sym_name = list(obj.symbols.keys())[rel.ref - 1]
+    ref_sym = gsymtab[sym_name]
+    executable_rel_addr = ref_sym.value - 0x1000
+    got_offset = ref_sym.got_offset
+    seg_data[offset:offset+4] = got_offset.to_bytes(4, byteorder=byteorder)
+    gdata['.got'][got_offset:got_offset+4] = executable_rel_addr.to_bytes(4, byteorder=byteorder)
+
 def _relocate_one(rel, obj, gsymtab, gdata, byteorder):
     tgt_lseg = obj.segments[rel.seg_number - 1]
     seg_data = gdata[tgt_lseg.name]
@@ -58,6 +66,8 @@ def _relocate_one(rel, obj, gsymtab, gdata, byteorder):
         return _relocate_u2(rel, obj, gsymtab, seg_data, offset, byteorder)
     elif rel.rel_type == 'L2':
         return _relocate_l2(rel, obj, gsymtab, seg_data, offset, byteorder)
+    elif rel.rel_type == 'GP4':
+        return _relocate_gp4(rel, obj, gsymtab, seg_data, offset, gdata, byteorder)
     else:
         print(f"Unsupported relocation type: {rel.rel_type}", file=sys.stderr)
         sys.exit(1)

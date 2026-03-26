@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import Object, parse_objects, parse_object
+from object import Object, Relocation, parse_objects, parse_object
 import storage
 import symbol
 import relocation
@@ -66,7 +66,8 @@ def link_objects(input_files, byteorder, wrap_symbols):
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
     relocation.relocate(objs, gsymtab, gdata, byteorder)
     out_data = [v for v in gdata.values()]
-    out_relocations = []
+    got_segment_index = next((i + 1 for i, s in enumerate(out_segments) if s.name == '.got'), None)
+    out_relocations = [Relocation(s.got_offset, got_segment_index, 0, 'ER4', [])  for s in gsymtab.values() if s.got_offset is not None]
 
     return out_segments, out_symbols, out_relocations, out_data
 

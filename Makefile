@@ -495,7 +495,7 @@ test22:
 	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gfunc(0x1010)-0x1000 = 0x10)
 	#   4 2 0 ER4  (GOT[1] at .got offset 4, exec-relative: gvar(0x2008)-0x1000  = 0x1008)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 22 passed$(RESET)" || echo "$(RED)Test 22 failed$(RESET)"
 

@@ -12,6 +12,7 @@ class GlobalSymbol:
         self.obj = obj
         self.lsym = lsym
         self.value = lsym.value
+        self.got_offset = None
 
     @property
     def is_defined(self):
