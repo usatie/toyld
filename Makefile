@@ -13,7 +13,7 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	# Use $(seq) instead of {1..25}: brace expansion is bash-only and fails under /bin/sh
+	@# Use $(seq) instead of {1..25}: brace expansion is bash-only and fails under /bin/sh
 	@passed=0; total=25; \
 	for t in $$(seq 1 25); do \
 		result=$$($(MAKE) --no-print-directory -s test$$t 2>&1); \
@@ -29,6 +29,29 @@ all:
 		printf "$(GREEN)$$passed/$$total tests passed$(RESET)\n"; \
 	else \
 		printf "$(RED)$$passed/$$total tests passed$(RESET)\n"; \
+	fi
+
+.PHONY: ci
+ci:
+	# Run all tests verbosely; print output for each; exit non-zero if any failed
+	@passed=0; failed=0; total=25; \
+	for t in $$(seq 1 25); do \
+		printf "=== Test $$t ===\n"; \
+		result=$$($(MAKE) --no-print-directory test$$t 2>&1); \
+		printf "%s\n" "$$result"; \
+		if echo "$$result" | grep -q "passed"; then \
+			passed=$$((passed+1)); \
+		else \
+			failed=$$((failed+1)); \
+		fi; \
+		printf "\n"; \
+	done; \
+	printf "=== Summary ===\n"; \
+	if [ $$failed -eq 0 ]; then \
+		printf "$(GREEN)$$passed/$$total tests passed$(RESET)\n"; \
+	else \
+		printf "$(RED)$$passed/$$total tests passed, $$failed failed$(RESET)\n"; \
+		exit 1; \
 	fi
 
 test1: TEST_DIR=tests/testcase1
