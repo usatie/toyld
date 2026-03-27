@@ -1,6 +1,8 @@
 import sys
 from dataclasses import dataclass
 
+from object import Relocation
+
 @dataclass
 class RelocationContext:
     rel: object
@@ -12,6 +14,7 @@ class RelocationContext:
     tgt_lseg: object
     seg_data: object
     offset: int
+    out_segments: list
 
 def _resolve_symbol_addr(ctx):
     sym_name = list(ctx.obj.symbols.keys())[ctx.rel.ref - 1]
@@ -21,6 +24,10 @@ def _resolve_symbol_addr(ctx):
 def _relocate_a4(ctx):
     ref_lseg = ctx.obj.segments[ctx.rel.ref - 1]
     ctx.seg_data[ctx.offset:ctx.offset+4] = ref_lseg.assigned_address.to_bytes(4, byteorder=ctx.byteorder)
+    # Create ER4 relocation entries for the output
+    offset = ctx.tgt_lseg.assigned_offset + ctx.rel.loc
+    segment_number = next((i + 1 for i, s in enumerate(ctx.out_segments) if s.name == ctx.tgt_lseg.name), None)
+    return Relocation(offset, segment_number, 0, 'ER4', [])
 
 def _relocate_r4(ctx):
     ref_lseg = ctx.obj.segments[ctx.rel.ref - 1]
@@ -34,6 +41,10 @@ def _relocate_as4(ctx):
     addend = int.from_bytes(ctx.seg_data[ctx.offset:ctx.offset+4], byteorder=ctx.byteorder, signed=True)
     abs_addr += addend
     ctx.seg_data[ctx.offset:ctx.offset+4] = abs_addr.to_bytes(4, byteorder=ctx.byteorder)
+    # Create ER4 relocation entries for the output
+    offset = ctx.tgt_lseg.assigned_offset + ctx.rel.loc
+    segment_number = next((i + 1 for i, s in enumerate(ctx.out_segments) if s.name == ctx.tgt_lseg.name), None)
+    return Relocation(offset, segment_number, 0, 'ER4', [])
 
 def _relocate_rs4(ctx):
     abs_addr = _resolve_symbol_addr(ctx)
@@ -86,7 +97,11 @@ _HANDLERS = {
     'GR4': _relocate_gr4,
 }
 
-def relocate(objs, gsymtab, gdata, byteorder, got_gseg):
+def relocate(objs, gsymtab, gdata, byteorder, out_segments):
+    got_segment_index = next((i + 1 for i, s in enumerate(out_segments) if s.name == '.got'), None)
+    got_gseg = out_segments[got_segment_index - 1] if got_segment_index is not None else None
+    # We need to create ER4 relocations for the output for all symbols that are stored in the GOT
+    out_relocations = [Relocation(s.got_offset, got_segment_index, 0, 'ER4', [])  for s in gsymtab.values() if s.got_offset is not None]
     for o in objs:
         for rel in o.relocations:
             tgt_lseg = o.segments[rel.seg_number - 1]
@@ -101,6 +116,9 @@ def relocate(objs, gsymtab, gdata, byteorder, got_gseg):
                 sys.exit(1)
             ctx = RelocationContext(
                 rel=rel, obj=o, gsymtab=gsymtab, gdata=gdata, got_gseg=got_gseg,
-                byteorder=byteorder, tgt_lseg=tgt_lseg, seg_data=seg_data, offset=offset,
+                byteorder=byteorder, tgt_lseg=tgt_lseg, seg_data=seg_data, offset=offset, out_segments=out_segments
             )
-            handler(ctx)
+            ret = handler(ctx)
+            if isinstance(ret, Relocation):
+                out_relocations.append(ret)
+    return out_relocations

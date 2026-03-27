@@ -64,11 +64,8 @@ def link_objects(input_files, byteorder, wrap_symbols):
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
-    got_segment_index = next((i + 1 for i, s in enumerate(out_segments) if s.name == '.got'), None)
-    got_gseg = out_segments[got_segment_index - 1] if got_segment_index is not None else None
-    relocation.relocate(objs, gsymtab, gdata, byteorder, got_gseg)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
     out_data = [v for v in gdata.values()]
-    out_relocations = [Relocation(s.got_offset, got_segment_index, 0, 'ER4', [])  for s in gsymtab.values() if s.got_offset is not None]
 
     return out_segments, out_symbols, out_relocations, out_data
 

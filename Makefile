@@ -137,7 +137,7 @@ test10:
 	# - .text: 0011223344556677|deadbeef
 	# - .data: aaaaaaaaaaaa|00002014|bbbbbbbbbbbb|0000201c
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
 
@@ -208,7 +208,7 @@ test12:
 	# - .text: deadbeef|00001010|aabbccdd|00002004|11223344|00001000|aabbccdd|0000200c
 	# - .data: deadbeef|cafebabe
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 12 passed$(RESET)" || echo "$(RED)Test 12 failed$(RESET)"
 
@@ -331,7 +331,7 @@ test16:
 	# - .text: 11223344|00002000|00000ffc|0000101c|00000ff0|0001|1e08|aabbccdd|55667788
 	# - .data: deadbeef|99aabbcc
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 16 passed$(RESET)" || echo "$(RED)Test 16 failed$(RESET)"
 
@@ -363,7 +363,7 @@ test17:
 	# - .text: 11223344|00200000|fc0f0000|1c100000|f00f0000|0100|081e|aabbccdd|55667788
 	# - .data: deadbeef|99aabbcc
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 17 passed$(RESET)" || echo "$(RED)Test 17 failed$(RESET)"
 
@@ -402,7 +402,7 @@ test18:
 	#   main.lk .data[4]       → wrap_malloc(0x1014) + 0 = 0x1014           → 00001014
 	#   malloc.lk .data[4]     → wrap_malloc(0x1014) + 0 = 0x1014           → 00001014
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/malloc.lk $(TEST_DIR)/wrap_malloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/malloc.lk $(TEST_DIR)/wrap_malloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 18 passed$(RESET)" || echo "$(RED)Test 18 failed$(RESET)"
 
@@ -437,7 +437,7 @@ test19:
 	#   malloc.lk .data[4] → wrap_malloc(0x100c) → 0000100c
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LIB_CMD) --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
-		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& echo "$(GREEN)Test 19 passed$(RESET)" || echo "$(RED)Test 19 failed$(RESET)"
 
@@ -451,7 +451,7 @@ test20:
 	# and apply the same wrap semantics.  Expected output is identical to test 19.
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
-		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& echo "$(GREEN)Test 20 passed$(RESET)" || echo "$(RED)Test 20 failed$(RESET)"
 
@@ -564,14 +564,14 @@ test25:
 	#   .data: 0x2000 (main.lk 8 bytes)
 	#
 	# A4 patch at .data[0] (ref = seg 1 = .text):
-	#   mem[0] = exec-relative: .text(0x1000)-0x1000 = 0x0 → 00000000
+	#   mem[0] = absolute address of .text = 0x1000 → 00001000
 	#
 	# AS4 patch at .data[4] (ref = sym func, addend = 0):
-	#   mem[4] = exec-relative: func(0x1008)-0x1000 = 0x8 → 00000008
+	#   mem[4] = absolute address of func = 0x1008 → 00001008
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (.data offset 0, exec-relative value 0x0)
-	#   4 2 0 ER4  (.data offset 4, exec-relative value 0x8)
+	#   0 2 0 ER4  (.data offset 0, absolute value 0x1000)
+	#   4 2 0 ER4  (.data offset 4, absolute value 0x1008)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
