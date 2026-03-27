@@ -1,8 +1,9 @@
 LINK
-2 2 2
+3 2 2
 # segments: name base length flags
 .text 0 8 RP
 .data 0 8 RWP
+.bss 0 1238 RW
 # symbols: name value seg_number type
 # symbol 1: main — defined in .text at offset 0
 main 0 1 D
@@ -12,11 +13,12 @@ gext 0 0 U
 # GP4: at offset 4 in .text (seg 1), store GOT-relative offset of GOT entry for gext (sym 2)
 # gext is the only GOT entry at GOT offset 0 → mem[4] = 00000000
 4 1 2 GP4
-# GR4: at offset 0 in .data (seg 2), store GOT-relative offset of the start of .data (seg 2)
-# after allocation: .data starts at 0x2004, GOT at 0x2000 → mem[0] = 0x2004 - 0x2000 = 4
-0 2 2 GR4
+# GR4: at offset 0 in .data (seg 2), store GOT-relative address of .bss[0x1234] (seg 3, offset=0x1234)
+# after allocation: .bss starts at 0x2010, GOT at 0x2000, offset 0x1234
+#   → mem[0] = 0x2010 + 0x1234 - 0x2000 = 0x1244
+0 2 3 GR4
 # data: .text (8 bytes) then .data (8 bytes)
 # .text: [0..3] body | [4..7] GP4 slot (→gext, patched to 00000000)
 1122334400000000
-# .data: [0..3] GR4 slot (addend=0, patched to 00000004) | [4..7] body
-00000000cafebabe
+# .data: [0..3] GR4 slot (offset=0x1234, patched to 0x1244) | [4..7] body
+00001234cafebabe

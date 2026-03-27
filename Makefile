@@ -526,26 +526,27 @@ test23:
 
 test24: TEST_DIR=tests/testcase24
 test24:
-	# Test 24 for project 8.3: GR4 — GOT-relative segment address
+	# Test 24 for project 8.3: GR4 — GOT-relative segment address with non-zero offset
 	#
-	# main.lk uses GR4 to replace a segment-start address with its GOT-relative offset,
+	# main.lk uses GR4 to compute the GOT-relative address of .bss[0x1234] (offset=0x1234),
 	# and GP4 to reference an external symbol gext (which creates the GOT).
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 8 bytes only)
 	#   .got:  0x2000 (4 bytes: GOT[0]=gext exec-rel=0x100c)
 	#   .data: 0x2004 (main.lk 8 bytes + other.lk 4 bytes = 0xc bytes)
+	#   .bss:  0x2010 (main.lk 0x1238 bytes)
 	#
 	# GP4 patch at .text[4]:
 	#   GOT offset of gext = 0 → 00000000
 	#
-	# GR4 patch at .data[0] (ref = main.lk .data, addend = 0):
-	#   mem[0] = base(.data) + 0 - GOT_base = 0x2004 - 0x2000 = 4 → 00000004
+	# GR4 patch at .data[0] (ref = main.lk .bss, offset = 0x1234):
+	#   mem[0] = base(.bss) + 0x1234 - GOT_base = 0x2010 + 0x1234 - 0x2000 = 0x1244 → 00001244
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
 	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gext(0x200c)-0x1000 = 0x100c)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 24 passed$(RESET)" || echo "$(RED)Test 24 failed$(RESET)"
 
