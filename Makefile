@@ -12,7 +12,23 @@ BUILD_DIR=build
 OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
-all: test1 test2 test3 test4 test5 test6 test7 test8 test9 test10 test11 test12 test13 test14 test15 test16 test17 test18 test19 test20 test21 test22 test23 test24 test25
+all:
+	@passed=0; total=25; \
+	for t in {1..25}; do \
+		result=$$($(MAKE) --no-print-directory -s test$$t 2>&1); \
+		if echo "$$result" | grep -q "passed"; then \
+			passed=$$((passed+1)); \
+			printf "$(GREEN)Test %2d passed$(RESET)\n" $$t; \
+		else \
+			printf "$(RED)Test %2d FAILED$(RESET)\n" $$t; \
+		fi; \
+	done; \
+	printf "\n"; \
+	if [ $$passed -eq $$total ]; then \
+		printf "$(GREEN)$$passed/$$total tests passed$(RESET)\n"; \
+	else \
+		printf "$(RED)$$passed/$$total tests passed$(RESET)\n"; \
+	fi
 
 test1: TEST_DIR=tests/testcase1
 test1:
