@@ -182,9 +182,10 @@ mem[loc] += load_base_address
 **Example:**
 
 ```
+.text starts at 0x1000; foo is at 0x1010, bar is at 0x1020.
 .data segment contains a function pointer table:
-  offset 0x00: address of foo  (= 0x10, offset within .text)
-  offset 0x04: address of bar  (= 0x20, offset within .text)
+  offset 0x00: address of foo  (= 0x1010, address relative to beginning of executable)
+  offset 0x04: address of bar  (= 0x1020, address relative to beginning of executable)
 
 ER4 entries in output:
   0 2 - ER4
@@ -193,8 +194,8 @@ ER4 entries in output:
 
 At load time, if the executable is loaded at `0x7f000000`:
 ```
-mem[0x00] = 0x10 + 0x7f000000 = 0x7f000010
-mem[0x04] = 0x20 + 0x7f000000 = 0x7f000020
+mem[0x00] = 0x1010 + 0x7f000000 = 0x7f001010
+mem[0x04] = 0x1020 + 0x7f000000 = 0x7f001020
 ```
 
 **Typical use:** Any data location that holds an absolute address and cannot be expressed as a GOT-relative reference — most commonly **function pointer tables** and **data-to-data pointers** initialized at compile time.
@@ -253,8 +254,8 @@ GR4:  target = segment[ref].start + mem[loc]
       mem[loc] = target - GOT_base
 
 ER4 (input A4/AS4 → output ER4):
-      carry loc/seg through to the output relocation table
-      (do not patch mem[loc]; the OS loader will do it)
+      mem[loc] = address relative to beginning of executable  (written by the linker)
+      carry loc/seg through to the output relocation table    (OS loader will add load base)
 ```
 
 ### Output Relocation Table
