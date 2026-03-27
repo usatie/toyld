@@ -1,3 +1,4 @@
+SHELL=/bin/bash
 LINKER_NAME=linker.py
 LINK_CMD=./$(LINKER_NAME)
 
@@ -13,7 +14,6 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@# Use $(seq) instead of {1..25}: brace expansion is bash-only and fails under /bin/sh
 	@passed=0; total=25; \
 	for t in $$(seq 1 25); do \
 		result=$$($(MAKE) --no-print-directory -s test$$t 2>&1); \
