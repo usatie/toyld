@@ -29,6 +29,10 @@ This project implements a linker and librarian that process a simple text-based 
 | 8.1 | Ch. 8 | linker | Symbol wrapping against directory-format libraries |
 | 8.1 | Ch. 8 | linker | Symbol wrapping against file-format libraries |
 | 8.2 | Ch. 8 | symwrap | Standalone symbol wrapper program for object files |
+| 8.3 | Ch. 8 | linker | GP4 relocation — GOT pointer (external symbol via GOT) |
+| 8.3 | Ch. 8 | linker | GA4 relocation — GOT address (PC-relative distance to GOT) |
+| 8.3 | Ch. 8 | linker | GR4 relocation — GOT-relative local address |
+| 8.3 | Ch. 8 | linker | ER4 output — executable-relative entries from A4/AS4 inputs and GOT slots |
 
 ## Object File Format (`.lk`)
 
@@ -77,7 +81,7 @@ bar 20 2 U
 
 **Segment numbers** in symbol and relocation entries are 1-based.
 
-**Relocation types:** `A4` (Absolute [Segment] reference), `R4` (Relative [Segment] reference), `AS4` (Absolute Symbol reference), `RS4` (Relative Symbol reference), `U2` (Upper half reference), `L2` (Lower half reference). See `docs/relocation.md` for details.
+**Relocation types:** `A4` (Absolute [Segment] reference), `R4` (Relative [Segment] reference), `AS4` (Absolute Symbol reference), `RS4` (Relative Symbol reference), `U2` (Upper half reference), `L2` (Lower half reference), `GA4` (distance to GOT base), `GP4` (GOT pointer for external symbol), `GR4` (GOT-relative local address), `ER4` (executable-relative, output-only). See `docs/relocation.md` and `docs/got.md` for details.
 
 ## Usage
 
@@ -173,7 +177,7 @@ d 38 foo helper
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test21)
+make           # Run all tests (test1–test25)
 make test1     # Run individual test
 ```
 
@@ -303,6 +307,34 @@ Uses `symwrap.py` to rewrite two object files with `--wrap malloc` without linki
 
 ```sh
 ./symwrap.py --wrap malloc tests/testcase21/caller.lk tests/testcase21/impl.lk -o build/symwrap
+```
+
+### Test 22 — GP4 relocation (Project 8.3)
+Links two object files where `main.lk` references two external symbols (`gfunc` in `.text`, `gvar` in `.data`) via `GP4`. The linker builds a 2-entry GOT and writes each symbol's GOT-relative offset at the relocation site. Both GOT slots hold absolute addresses, producing two `ER4` entries in the output.
+
+```sh
+./linker.py tests/testcase22/main.lk tests/testcase22/other.lk --byteorder big
+```
+
+### Test 23 — GA4 relocation (Project 8.3)
+Links two object files where `main.lk` uses `GA4` to store the PC-relative distance to the GOT, and `GP4` to get the GOT-relative offset of an external variable. The GOT has one slot, producing one `ER4` entry in the output.
+
+```sh
+./linker.py tests/testcase23/main.lk tests/testcase23/other.lk --byteorder big
+```
+
+### Test 24 — GR4 relocation (Project 8.3)
+Links two object files where `main.lk` uses `GR4` to compute the GOT-relative address of a local `.bss` location (with a non-zero offset), and `GP4` to reference an external symbol. The single GOT slot produces one `ER4` entry in the output.
+
+```sh
+./linker.py tests/testcase24/main.lk tests/testcase24/other.lk --byteorder big
+```
+
+### Test 25 — ER4 output from A4/AS4 inputs (Project 8.3)
+Links two object files where `main.lk` has an `A4` (absolute segment reference) and an `AS4` (absolute symbol reference) into its `.data` segment, but no `GP4` — so no GOT is created. The linker emits `ER4` entries in the output for each location whose patched value is an absolute address, so an OS loader can fix them up at load time.
+
+```sh
+./linker.py tests/testcase25/main.lk tests/testcase25/other.lk --byteorder big
 ```
 
 ## Storage Allocation Strategy
