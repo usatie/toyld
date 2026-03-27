@@ -68,6 +68,12 @@ def _relocate_ga4(ctx):
     distance_to_got = ctx.got_gseg.start - (ctx.tgt_lseg.assigned_address + ctx.rel.loc)
     ctx.seg_data[ctx.offset:ctx.offset+4] = distance_to_got.to_bytes(4, byteorder=ctx.byteorder)
 
+def _relocate_gr4(ctx):
+    ref_lseg = ctx.obj.segments[ctx.rel.ref - 1]
+    ref_lseg_offset = int.from_bytes(ctx.seg_data[ctx.offset:ctx.offset+4], byteorder=ctx.byteorder, signed=True)
+    got_relative_addr = ref_lseg.assigned_address + ref_lseg_offset - ctx.got_gseg.start
+    ctx.seg_data[ctx.offset:ctx.offset+4] = got_relative_addr.to_bytes(4, byteorder=ctx.byteorder, signed=True)
+
 _HANDLERS = {
     'A4':  _relocate_a4,
     'R4':  _relocate_r4,
@@ -77,6 +83,7 @@ _HANDLERS = {
     'L2':  _relocate_l2,
     'GP4': _relocate_gp4,
     'GA4': _relocate_ga4,
+    'GR4': _relocate_gr4,
 }
 
 def relocate(objs, gsymtab, gdata, byteorder, got_gseg):
