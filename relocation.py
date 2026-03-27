@@ -47,7 +47,11 @@ def _relocate_gp4(rel, obj, gsymtab, seg_data, offset, gdata, byteorder):
     seg_data[offset:offset+4] = got_offset.to_bytes(4, byteorder=byteorder)
     gdata['.got'][got_offset:got_offset+4] = executable_rel_addr.to_bytes(4, byteorder=byteorder)
 
-def _relocate_one(rel, obj, gsymtab, gdata, byteorder):
+def _relocate_ga4(rel, seg_data, offset, tgt_lseg, got_gseg, byteorder):
+    seg_data[offset:offset+4] = (got_gseg.start - (tgt_lseg.assigned_address + rel.loc)).to_bytes(4, byteorder=byteorder)
+    print(f"GOT start address {got_gseg.start} written to offset {offset}", file=sys.stderr)
+
+def _relocate_one(rel, obj, gsymtab, gdata, byteorder, got_seg):
     tgt_lseg = obj.segments[rel.seg_number - 1]
     seg_data = gdata[tgt_lseg.name]
     offset = tgt_lseg.assigned_offset + rel.loc
@@ -68,11 +72,13 @@ def _relocate_one(rel, obj, gsymtab, gdata, byteorder):
         return _relocate_l2(rel, obj, gsymtab, seg_data, offset, byteorder)
     elif rel.rel_type == 'GP4':
         return _relocate_gp4(rel, obj, gsymtab, seg_data, offset, gdata, byteorder)
+    elif rel.rel_type == 'GA4':
+        return _relocate_ga4(rel, seg_data, offset, tgt_lseg, got_seg, byteorder)
     else:
         print(f"Unsupported relocation type: {rel.rel_type}", file=sys.stderr)
         sys.exit(1)
 
-def relocate(objs, gsymtab, gdata, byteorder):
+def relocate(objs, gsymtab, gdata, byteorder, got_seg):
     for o in objs:
         for rel in o.relocations:
-            _relocate_one(rel, o, gsymtab, gdata, byteorder)
+            _relocate_one(rel, o, gsymtab, gdata, byteorder, got_seg)

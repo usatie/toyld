@@ -520,7 +520,7 @@ test23:
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
 	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gvar(0x2004)-0x1000 = 0x1004)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 23 passed$(RESET)" || echo "$(RED)Test 23 failed$(RESET)"
 
