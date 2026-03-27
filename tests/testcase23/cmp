@@ -1,8 +1,9 @@
 LINK
-3 2 1
+4 2 1
 .text 1000 10 RP
 .got 2000 4 RWP
 .data 2004 4 RWP
+.bss 2008 0 RW
 main 1000 0 D
 gvar 2004 0 D
 0 2 0 ER4
