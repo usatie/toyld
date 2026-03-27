@@ -13,8 +13,9 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
+	# Use $(seq) instead of {1..25}: brace expansion is bash-only and fails under /bin/sh
 	@passed=0; total=25; \
-	for t in {1..25}; do \
+	for t in $$(seq 1 25); do \
 		result=$$($(MAKE) --no-print-directory -s test$$t 2>&1); \
 		if echo "$$result" | grep -q "passed"; then \
 			passed=$$((passed+1)); \
@@ -73,10 +74,11 @@ test5:
 test6: TEST_DIR=tests/testcase6
 test6:
 	# Test 6 for project 6.1: Create directory format library
+	# stat inode flag differs by platform: -c %i on Linux, -f %i on macOS; || fallback handles both
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LIB_CMD) --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
 		&& diff -r $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
-		&& [ $$(stat -f %i $(BUILD_DIR)/lib.lk/foo) -eq $$(stat -f %i $(BUILD_DIR)/lib.lk/helper) ] \
+		&& [ $$(stat -c %i $(BUILD_DIR)/lib.lk/foo 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/foo) -eq $$(stat -c %i $(BUILD_DIR)/lib.lk/helper 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/helper) ] \
 		&& echo "$(GREEN)Test 6 passed$(RESET)" || echo "$(RED)Test 6 failed$(RESET)"
 
 test7: TEST_DIR=tests/testcase7
