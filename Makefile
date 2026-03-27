@@ -484,7 +484,7 @@ test22:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 0x10 + other.lk 0x8 = 0x18 bytes)
-	#   .got:  0x2000 (8 bytes: GOT[0]=gfunc exec-rel=0x10, GOT[1]=gvar exec-rel=0x1008)
+	#   .got:  0x2000 (8 bytes: GOT[0]=gfunc abs=0x1010, GOT[1]=gvar abs=0x2008)
 	#   .data: 0x2008 (other.lk 4 bytes)
 	#
 	# GP4 patches:
@@ -492,8 +492,8 @@ test22:
 	#   main.lk .text[c] → GOT offset of gvar  = 4 → 00000004
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gfunc(0x1010)-0x1000 = 0x10)
-	#   4 2 0 ER4  (GOT[1] at .got offset 4, exec-relative: gvar(0x2008)-0x1000  = 0x1008)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, address relative to beginning of executable: gfunc=0x1010)
+	#   4 2 0 ER4  (GOT[1] at .got offset 4, address relative to beginning of executable: gvar=0x2008)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -508,7 +508,7 @@ test23:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 0x10 bytes only)
-	#   .got:  0x2000 (4 bytes: GOT[0]=gvar exec-rel=0x1004)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gvar abs=0x2004)
 	#   .data: 0x2004 (other.lk 4 bytes)
 	#
 	# GA4 patch at .text[4]:
@@ -518,7 +518,7 @@ test23:
 	#   GOT offset of gvar = 0 → 00000000
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gvar(0x2004)-0x1000 = 0x1004)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, address relative to beginning of executable: gvar=0x2004)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -533,7 +533,7 @@ test24:
 	#
 	# After allocation:
 	#   .text: 0x1000 (main.lk 8 bytes only)
-	#   .got:  0x2000 (4 bytes: GOT[0]=gext exec-rel=0x100c)
+	#   .got:  0x2000 (4 bytes: GOT[0]=gext abs=0x200c)
 	#   .data: 0x2004 (main.lk 8 bytes + other.lk 4 bytes = 0xc bytes)
 	#   .bss:  0x2010 (main.lk 0x1238 bytes)
 	#
@@ -544,7 +544,7 @@ test24:
 	#   mem[0] = base(.bss) + 0x1234 - GOT_base = 0x2010 + 0x1234 - 0x2000 = 0x1244 → 00001244
 	#
 	# ER4 output (loc = segment-relative offset, seg = segment number, ref unused = 0):
-	#   0 2 0 ER4  (GOT[0] at .got offset 0, exec-relative: gext(0x200c)-0x1000 = 0x100c)
+	#   0 2 0 ER4  (GOT[0] at .got offset 0, address relative to beginning of executable: gext=0x200c)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
@@ -573,7 +573,7 @@ test25:
 	#   0 2 0 ER4  (.data offset 0, exec-relative value 0x0)
 	#   4 2 0 ER4  (.data offset 4, exec-relative value 0x8)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& echo "$(GREEN)Test 25 passed$(RESET)" || echo "$(RED)Test 25 failed$(RESET)"
 

@@ -60,8 +60,8 @@ def _relocate_gp4(ctx):
     got_offset = ref_sym.got_offset
     ctx.seg_data[ctx.offset:ctx.offset+4] = got_offset.to_bytes(4, byteorder=ctx.byteorder)
 
-    # Write the address relative to the beginning of the executable (0x1000) into the GOT entry
-    executable_rel_addr = ref_sym.value - 0x1000
+    # Write the address relative to the beginning of the executable into the GOT entry
+    executable_rel_addr = ref_sym.value
     ctx.gdata['.got'][got_offset:got_offset+4] = executable_rel_addr.to_bytes(4, byteorder=ctx.byteorder)
 
 def _relocate_ga4(ctx):
