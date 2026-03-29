@@ -60,7 +60,7 @@ test1:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 1 passed$(RESET)" || echo "$(RED)Test 1 failed$(RESET)"
+		&& echo "$(GREEN)Test 1 passed$(RESET)" || { echo "$(RED)Test 1 failed$(RESET)"; false; }
 
 test2: TEST_DIR=tests/testcase2
 test2:
@@ -68,7 +68,7 @@ test2:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/{main,california,massachusetts,newyork}.lk --output $(OUT) --skip-symbols --skip-relocations --skip-data \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 2 passed$(RESET)" || echo "$(RED)Test 2 failed$(RESET)"
+		&& echo "$(GREEN)Test 2 passed$(RESET)" || { echo "$(RED)Test 2 failed$(RESET)"; false; }
 
 test3: TEST_DIR=tests/testcase3
 test3:
@@ -76,7 +76,7 @@ test3:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/{main,california,massachusetts,newyork}.lk --output $(OUT) --skip-symbols --skip-relocations --skip-data \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 3 passed$(RESET)" || echo "$(RED)Test 3 failed$(RESET)"
+		&& echo "$(GREEN)Test 3 passed$(RESET)" || { echo "$(RED)Test 3 failed$(RESET)"; false; }
 
 test4: TEST_DIR=tests/testcase4
 test4:
@@ -84,7 +84,7 @@ test4:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/{main,california,massachusetts,newyork}.lk --output $(OUT) --skip-symbols --skip-relocations --skip-data \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 4 passed$(RESET)" || echo "$(RED)Test 4 failed$(RESET)"
+		&& echo "$(GREEN)Test 4 passed$(RESET)" || { echo "$(RED)Test 4 failed$(RESET)"; false; }
 
 test5: TEST_DIR=tests/testcase5
 test5:
@@ -92,7 +92,7 @@ test5:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/{main,calif}.lk --output $(OUT) --skip-relocations --skip-data \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 5 passed$(RESET)" || echo "$(RED)Test 5 failed$(RESET)"
+		&& echo "$(GREEN)Test 5 passed$(RESET)" || { echo "$(RED)Test 5 failed$(RESET)"; false; }
 
 test6: TEST_DIR=tests/testcase6
 test6:
@@ -102,7 +102,7 @@ test6:
 		&& $(LIB_CMD) --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
 		&& diff -r $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
 		&& [ $$(stat -c %i $(BUILD_DIR)/lib.lk/foo 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/foo) -eq $$(stat -c %i $(BUILD_DIR)/lib.lk/helper 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/helper) ] \
-		&& echo "$(GREEN)Test 6 passed$(RESET)" || echo "$(RED)Test 6 failed$(RESET)"
+		&& echo "$(GREEN)Test 6 passed$(RESET)" || { echo "$(RED)Test 6 failed$(RESET)"; false; }
 
 test7: TEST_DIR=tests/testcase7
 test7:
@@ -125,7 +125,7 @@ test7:
 		&& $(LIB_CMD) --output $(BUILD_DIR)/liberrno.lk $(TEST_DIR)/{errno,strerror}.lk \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 7 passed$(RESET)" || echo "$(RED)Test 7 failed$(RESET)"
+		&& echo "$(GREEN)Test 7 passed$(RESET)" || { echo "$(RED)Test 7 failed$(RESET)"; false; }
 
 test8: TEST_DIR=tests/testcase8
 test8:
@@ -133,7 +133,7 @@ test8:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
 		&& diff -U 1 $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 8 passed$(RESET)" || echo "$(RED)Test 8 failed$(RESET)"
+		&& echo "$(GREEN)Test 8 passed$(RESET)" || { echo "$(RED)Test 8 failed$(RESET)"; false; }
 
 test9: SRC_DIR=tests/testcase7
 test9: CMP_DIR=tests/testcase9
@@ -150,7 +150,7 @@ test9:
 		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/liberrno.lk $(SRC_DIR)/{errno,strerror}.lk \
 		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
-		&& echo "$(GREEN)Test 9 passed$(RESET)" || echo "$(RED)Test 9 failed$(RESET)"
+		&& echo "$(GREEN)Test 9 passed$(RESET)" || { echo "$(RED)Test 9 failed$(RESET)"; false; }
 
 test10: TEST_DIR=tests/testcase10
 test10:
@@ -180,7 +180,7 @@ test10:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 10 passed$(RESET)" || echo "$(RED)Test 10 failed$(RESET)"
+		&& echo "$(GREEN)Test 10 passed$(RESET)" || { echo "$(RED)Test 10 failed$(RESET)"; false; }
 
 test11: TEST_DIR=tests/testcase11
 test11:
@@ -212,7 +212,7 @@ test11:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 11 passed$(RESET)" || echo "$(RED)Test 11 failed$(RESET)"
+		&& echo "$(GREEN)Test 11 passed$(RESET)" || { echo "$(RED)Test 11 failed$(RESET)"; false; }
 
 test12: TEST_DIR=tests/testcase12
 test12:
@@ -251,7 +251,7 @@ test12:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 12 passed$(RESET)" || echo "$(RED)Test 12 failed$(RESET)"
+		&& echo "$(GREEN)Test 12 passed$(RESET)" || { echo "$(RED)Test 12 failed$(RESET)"; false; }
 
 test13: TEST_DIR=tests/testcase13
 test13:
@@ -284,7 +284,7 @@ test13:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 13 passed$(RESET)" || echo "$(RED)Test 13 failed$(RESET)"
+		&& echo "$(GREEN)Test 13 passed$(RESET)" || { echo "$(RED)Test 13 failed$(RESET)"; false; }
 
 test14: TEST_DIR=tests/testcase14
 test14:
@@ -312,7 +312,7 @@ test14:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 14 passed$(RESET)" || echo "$(RED)Test 14 failed$(RESET)"
+		&& echo "$(GREEN)Test 14 passed$(RESET)" || { echo "$(RED)Test 14 failed$(RESET)"; false; }
 
 test15: TEST_DIR=tests/testcase15
 test15:
@@ -339,7 +339,7 @@ test15:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 15 passed$(RESET)" || echo "$(RED)Test 15 failed$(RESET)"
+		&& echo "$(GREEN)Test 15 passed$(RESET)" || { echo "$(RED)Test 15 failed$(RESET)"; false; }
 
 test16: TEST_DIR=tests/testcase16
 test16:
@@ -374,7 +374,7 @@ test16:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 16 passed$(RESET)" || echo "$(RED)Test 16 failed$(RESET)"
+		&& echo "$(GREEN)Test 16 passed$(RESET)" || { echo "$(RED)Test 16 failed$(RESET)"; false; }
 
 test17: TEST_DIR=tests/testcase17
 test17:
@@ -406,7 +406,7 @@ test17:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 17 passed$(RESET)" || echo "$(RED)Test 17 failed$(RESET)"
+		&& echo "$(GREEN)Test 17 passed$(RESET)" || { echo "$(RED)Test 17 failed$(RESET)"; false; }
 
 test18: TEST_DIR=tests/testcase18
 test18:
@@ -445,7 +445,7 @@ test18:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/malloc.lk $(TEST_DIR)/wrap_malloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 18 passed$(RESET)" || echo "$(RED)Test 18 failed$(RESET)"
+		&& echo "$(GREEN)Test 18 passed$(RESET)" || { echo "$(RED)Test 18 failed$(RESET)"; false; }
 
 test19: SRC_DIR=tests/testcase19
 test19: CMP_DIR=tests/testcase19
@@ -480,7 +480,7 @@ test19:
 		&& $(LIB_CMD) --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
 		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
-		&& echo "$(GREEN)Test 19 passed$(RESET)" || echo "$(RED)Test 19 failed$(RESET)"
+		&& echo "$(GREEN)Test 19 passed$(RESET)" || { echo "$(RED)Test 19 failed$(RESET)"; false; }
 
 test20: SRC_DIR=tests/testcase19
 test20: CMP_DIR=tests/testcase20
@@ -494,7 +494,7 @@ test20:
 		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
 		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
-		&& echo "$(GREEN)Test 20 passed$(RESET)" || echo "$(RED)Test 20 failed$(RESET)"
+		&& echo "$(GREEN)Test 20 passed$(RESET)" || { echo "$(RED)Test 20 failed$(RESET)"; false; }
 
 test21: TEST_DIR=tests/testcase21
 test21:
@@ -512,7 +512,7 @@ test21:
 	rm -rf $(BUILD_DIR)/symwrap && mkdir -p $(BUILD_DIR)/symwrap \
 		&& ./symwrap.py --wrap malloc $(TEST_DIR)/caller.lk $(TEST_DIR)/impl.lk -o $(BUILD_DIR)/symwrap \
 		&& diff -r $(BUILD_DIR)/symwrap $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 21 passed$(RESET)" || echo "$(RED)Test 21 failed$(RESET)"
+		&& echo "$(GREEN)Test 21 passed$(RESET)" || { echo "$(RED)Test 21 failed$(RESET)"; false; }
 
 test22: TEST_DIR=tests/testcase22
 test22:
@@ -538,7 +538,7 @@ test22:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 22 passed$(RESET)" || echo "$(RED)Test 22 failed$(RESET)"
+		&& echo "$(GREEN)Test 22 passed$(RESET)" || { echo "$(RED)Test 22 failed$(RESET)"; false; }
 
 test23: TEST_DIR=tests/testcase23
 test23:
@@ -563,7 +563,7 @@ test23:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 23 passed$(RESET)" || echo "$(RED)Test 23 failed$(RESET)"
+		&& echo "$(GREEN)Test 23 passed$(RESET)" || { echo "$(RED)Test 23 failed$(RESET)"; false; }
 
 test24: TEST_DIR=tests/testcase24
 test24:
@@ -589,7 +589,7 @@ test24:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 24 passed$(RESET)" || echo "$(RED)Test 24 failed$(RESET)"
+		&& echo "$(GREEN)Test 24 passed$(RESET)" || { echo "$(RED)Test 24 failed$(RESET)"; false; }
 
 test25: TEST_DIR=tests/testcase25
 test25:
@@ -616,7 +616,7 @@ test25:
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
-		&& echo "$(GREEN)Test 25 passed$(RESET)" || echo "$(RED)Test 25 failed$(RESET)"
+		&& echo "$(GREEN)Test 25 passed$(RESET)" || { echo "$(RED)Test 25 failed$(RESET)"; false; }
 
 .PHONY: clean
 clean:
