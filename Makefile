@@ -34,8 +34,8 @@ all:
 .PHONY: ci
 ci:
 	# Run all tests verbosely; print output for each; exit non-zero if any failed
-	@passed=0; failed=0; total=25; \
-	for t in $$(seq 1 25); do \
+	@passed=0; failed=0; total=29; \
+	for t in $$(seq 1 29); do \
 		printf "=== Test $$t ===\n"; \
 		$(MAKE) --no-print-directory test$$t 2>&1; \
 		if [ $$? -eq 0 ]; then \
@@ -616,6 +616,117 @@ test25:
 		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/other.lk --output $(OUT) --byteorder big \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 25 passed$(RESET)""\n" || { printf "$(RED)Test 25 failed$(RESET)""\n"; false; }
+
+test26: TEST_DIR=tests/testcase26
+test26:
+	# Test 26 for project 9.1: Create shared library (directory format, no external deps)
+	#
+	# add.lk: defines add (text[0..3]) and sub (text[4..7]); total 8 bytes of .text
+	# mul.lk: defines mul; total 4 bytes of .text
+	#
+	# Linked at --base-addr 0x5000 (all text starts at 0x5000):
+	#   add.lk .text → 0x5000 (8 bytes): add=0x5000, sub=0x5004
+	#   mul.lk .text → 0x5008 (4 bytes): mul=0x5008
+	#
+	# Shared library output (lib/libmath.sso): one .text segment, 3 absolute symbols.
+	#
+	# Stub library (stublib/libmath.sso, directory format):
+	#   LIBRARY NAME  → "libmath.sso\n"
+	#   add, sub      → hard-linked stub for add.lk:  { add 5000 D, sub 5004 D }
+	#   mul           → stub for mul.lk:               { mul 5008 D }
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.lk $(TEST_DIR)/{add,mul}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libmath.lk --shared --base-addr 0x5000 \
+		   --stub-format directory --stub-output $(BUILD_DIR)/stublib/libmath.sso \
+		   --output $(BUILD_DIR)/lib/libmath.sso \
+		&& diff -U 1 $(BUILD_DIR)/lib/libmath.sso $(TEST_DIR)/cmp/lib/libmath.sso \
+		&& diff -r $(BUILD_DIR)/stublib/libmath.sso $(TEST_DIR)/cmp/stublib/libmath.sso \
+		&& [ $$(stat -c %i $(BUILD_DIR)/stublib/libmath.sso/add 2>/dev/null || stat -f %i $(BUILD_DIR)/stublib/libmath.sso/add) \
+		     -eq $$(stat -c %i $(BUILD_DIR)/stublib/libmath.sso/sub 2>/dev/null || stat -f %i $(BUILD_DIR)/stublib/libmath.sso/sub) ] \
+		&& printf "$(GREEN)Test 26 passed$(RESET)\n" || { printf "$(RED)Test 26 failed$(RESET)\n"; false; }
+
+test27: TEST_DIR=tests/testcase27
+test27:
+	# Test 27 for project 9.1: Create shared library with external shared-library dependency
+	#
+	# printf.lk: defines printf (.text 8B), imports write (U) via AS4 relocation at .text[4]
+	# sprintf.lk: defines sprintf (.text 4B), no external refs
+	# libio.sso: directory-format input stub; provides write=0x3000 from libio.sso
+	#
+	# Linked at --base-addr 0x8000 (big-endian) with libio stub:
+	#   printf.lk .text → 0x8000 (8 bytes): printf=0x8000
+	#   sprintf.lk .text → 0x8008 (4 bytes): sprintf=0x8008
+	#   AS4 reloc in printf.lk: .text[4:8] ← write=0x3000 → 00003000
+	#
+	# Shared library output (lib/libprint.sso): printf and sprintf only; write not exported.
+	#
+	# Stub (stublib/libprint.sso, directory format):
+	#   LIBRARY NAME  → "libprint.sso\nlibio.sso\n"  (libio.sso listed as dependency)
+	#   printf        → stub for printf.lk: { printf 8000 D, write 0 U }
+	#   sprintf       → stub for sprintf.lk: { sprintf 8008 D }
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.lk $(TEST_DIR)/{printf,sprintf}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libprint.lk $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
+		   --stub-format directory --stub-output $(BUILD_DIR)/stublib/libprint.sso \
+		   --output $(BUILD_DIR)/lib/libprint.sso --byteorder big \
+		&& diff -U 1 $(BUILD_DIR)/lib/libprint.sso $(TEST_DIR)/cmp/lib/libprint.sso \
+		&& diff -r $(BUILD_DIR)/stublib/libprint.sso $(TEST_DIR)/cmp/stublib/libprint.sso \
+		&& printf "$(GREEN)Test 27 passed$(RESET)\n" || { printf "$(RED)Test 27 failed$(RESET)\n"; false; }
+
+test28: TEST_DIR=tests/testcase28
+test28:
+	# Test 28 for project 9.1: Create shared library + file-format stub (no external deps)
+	#
+	# Same modules as test 26 (add.lk, mul.lk), same shared library output.
+	# Key difference: stub output is a single file-format archive (stublib/libmath.sso).
+	#
+	# File-format stub layout (libmath.sso):
+	#   Header:   LIBRARY 2 56 libmath.sso  (25 bytes = 0x19)
+	#   Module 1: add.lk stub at 0x19       (37 bytes = 0x25): { add 5000 D, sub 5004 D }
+	#   Module 2: mul.lk stub at 0x3e       (24 bytes = 0x18): { mul 5008 D }
+	#   Directory at 0x56:
+	#     19 25 add sub
+	#     3e 18 mul
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.lk $(TEST_DIR)/{add,mul}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libmath.lk --shared --base-addr 0x5000 \
+		   --stub-format file --stub-output $(BUILD_DIR)/stublib/libmath.sso \
+		   --output $(BUILD_DIR)/lib/libmath.sso \
+		&& diff -U 1 $(BUILD_DIR)/lib/libmath.sso $(TEST_DIR)/cmp/lib/libmath.sso \
+		&& diff -U 1 $(BUILD_DIR)/stublib/libmath.sso $(TEST_DIR)/cmp/stublib/libmath.sso \
+		&& printf "$(GREEN)Test 28 passed$(RESET)\n" || { printf "$(RED)Test 28 failed$(RESET)\n"; false; }
+
+test29: TEST_DIR=tests/testcase29
+test29:
+	# Test 29 for project 9.1: Create shared library using a file-format input stub,
+	# and produce a file-format output stub that records the cross-library dependency.
+	#
+	# printf.lk: defines printf (.text 8B), imports write via AS4 reloc at .text[4]
+	# sprintf.lk: defines sprintf (.text 4B), no external refs
+	# libio.sso: file-format input stub; provides write=0x3000 from libio.sso
+	#   Header: LIBRARY 1 31 libio.sso  (23 bytes = 0x17)
+	#   Module 1: write stub at 0x17   (26 bytes = 0x1a): { write 3000 D }
+	#   Directory at 0x31: 17 1a write
+	#
+	# Linked at --base-addr 0x8000 (big-endian):
+	#   printf.lk .text → 0x8000: printf=0x8000; AS4 patch → write(0x3000) → 00003000
+	#   sprintf.lk .text → 0x8008: sprintf=0x8008
+	#
+	# File-format output stub (stublib/libprint.sso):
+	#   Header:   LIBRARY 2 67 libprint.sso libio.sso  (36 bytes = 0x24)
+	#   Module 1: printf.lk stub at 0x24              (39 bytes = 0x27): { printf 8000 D, write 0 U }
+	#   Module 2: sprintf.lk stub at 0x4b             (28 bytes = 0x1c): { sprintf 8008 D }
+	#   Directory at 0x67:
+	#     24 27 printf
+	#     4b 1c sprintf
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.lk $(TEST_DIR)/{printf,sprintf}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libprint.lk $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
+		   --stub-format file --stub-output $(BUILD_DIR)/stublib/libprint.sso \
+		   --output $(BUILD_DIR)/lib/libprint.sso --byteorder big \
+		&& diff -U 1 $(BUILD_DIR)/lib/libprint.sso $(TEST_DIR)/cmp/lib/libprint.sso \
+		&& diff -U 1 $(BUILD_DIR)/stublib/libprint.sso $(TEST_DIR)/cmp/stublib/libprint.sso \
+		&& printf "$(GREEN)Test 29 passed$(RESET)\n" || { printf "$(RED)Test 29 failed$(RESET)\n"; false; }
 
 .PHONY: clean
 clean:

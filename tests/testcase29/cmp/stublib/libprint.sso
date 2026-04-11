@@ -1,0 +1,10 @@
+LIBRARY 2 67 libprint.sso libio.sso
+LINK
+0 2 0
+printf 8000 0 D
+write 0 0 U
+LINK
+0 1 0
+sprintf 8008 0 D
+24 27 printf
+4b 1c sprintf

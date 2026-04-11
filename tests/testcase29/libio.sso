@@ -1,0 +1,5 @@
+LIBRARY 1 31 libio.sso
+LINK
+0 1 0
+write 3000 0 D
+17 1a write

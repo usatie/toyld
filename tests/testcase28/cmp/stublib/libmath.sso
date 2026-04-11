@@ -1,0 +1,10 @@
+LIBRARY 2 56 libmath.sso
+LINK
+0 2 0
+add 5000 0 D
+sub 5004 0 D
+LINK
+0 1 0
+mul 5008 0 D
+19 25 add sub
+3e 18 mul

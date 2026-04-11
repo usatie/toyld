@@ -1,0 +1,5 @@
+LINK
+1 1 0
+.text 0 4 RP
+sprintf 0 1 D
+cafebabe

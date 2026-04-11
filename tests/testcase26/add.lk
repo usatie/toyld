@@ -1,0 +1,6 @@
+LINK
+1 2 0
+.text 0 8 RP
+add 0 1 D
+sub 4 1 D
+deadbeef11223344

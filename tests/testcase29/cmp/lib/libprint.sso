@@ -1,0 +1,6 @@
+LINK
+1 2 0
+.text 8000 c RP
+printf 8000 0 D
+sprintf 8008 0 D
+deadbeef00003000cafebabe
