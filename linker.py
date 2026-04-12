@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import Object, Relocation, parse_objects, parse_object
+from object import Object, Relocation, parse_objects, parse_object, parse_module
 import storage
 import symbol
 import relocation
@@ -45,7 +45,7 @@ def is_library_file(filename):
         return magic == b'LIBRARY '
 
 def link_objects(input_files, byteorder, wrap_symbols, base_addr):
-    # Input files may contain libraries (directory format), so we need to exclude them
+    # Input files may contain libraries, so we need to separately treat them
     library_dirs = []
     library_files = []
     object_files = []
@@ -61,6 +61,69 @@ def link_objects(input_files, byteorder, wrap_symbols, base_addr):
             sys.exit(1)
     objs = parse_objects(object_files)
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
+
+    # Resolve symbol names
+    symbol.apply_wraps(objs, wrap_symbols)
+    gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
+
+    # Allocate Storage for .text, .data, .bss segments and assign addresses
+    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr)
+    # Resolve symbol values
+    symbol.resolve_values(objs, gsymtab, out_segments)
+    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
+    out_data = [v for v in gdata.values()]
+
+    return out_segments, out_symbols, out_relocations, out_data
+
+def collect_objecs(library_dirs, library_files):
+    objs = []
+    for lib_dir in library_dirs:
+        distinct_object_files = set()
+        for filename in os.listdir(lib_dir):
+            # Check if the file is already included (same inode)
+            file_path = os.path.join(lib_dir, filename)
+            file_inode = os.stat(file_path).st_ino
+            if file_inode in distinct_object_files:
+                continue
+            objs.append(parse_object(file_path))
+            distinct_object_files.add(file_inode)
+    for file in library_files:
+        with open(file, 'r') as f:
+            line = f.readline()
+            magic, nmods, dir_offset = line.strip().split()
+            nmods = int(nmods, 16)
+            dir_offset = int(dir_offset, 16)
+            f.seek(dir_offset)
+            for i in range(nmods):
+                line = f.readline()
+                mod_offset, mod_size, *symbol_strs = line.strip().split()
+                mod_offset = int(mod_offset, 16)
+                mod_size = int(mod_size, 16)
+                lib_obj = parse_module(file, offset=mod_offset, size=mod_size)
+                objs.append(lib_obj)
+    return objs
+
+def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
+    # Input files shall be only libraries
+    # TODO: We need to distinct stub libraries
+    library_dirs = []
+    library_files = []
+    for f in input_files:
+        if os.path.isdir(f):
+            library_dirs.append(f)
+        elif is_library_file(f):
+            library_files.append(f)
+        elif is_object_file(f):
+            print(f"Warning: {f} is an object file, but --shared option is specified. Input files for shared library should be libraries, skipping", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
+            sys.exit(1)
+    objs = collect_objecs(library_dirs, library_files)
+
+    # Link collected objects
+    lib_symtab = {}
 
     # Resolve symbol names
     symbol.apply_wraps(objs, wrap_symbols)
@@ -110,33 +173,26 @@ def write_output(filename, link_results, options):
     with open(filename, 'wb') as outfile:
         outfile.write(contents)
 
-
 def main():
     args = parse_args()
-    if len(args.input_files) == 1 and args.shared == False:
+    if args.shared:
+        results = link_shared_library(args.input_files, args.byteorder, args.wrap, args.base_addr)
+    elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])
-        write_output(
-            args.output,
-            (obj.segments, obj.symbols, obj.relocations, obj.data),
-            WriteOptions(
-                skip_symbols=args.skip_symbols,
-                skip_relocations=args.skip_relocations,
-                skip_data=args.skip_data,
-            ),
-        )
+        results = (obj.segments, obj.symbols, obj.relocations, obj.data)
     else:
         # Multiple input files, need to link them together
         results = link_objects(args.input_files, args.byteorder, args.wrap, args.base_addr)
-        write_output(
-            args.output,
-            results,
-            WriteOptions(
-                skip_symbols=args.skip_symbols,
-                skip_relocations=args.skip_relocations,
-                skip_data=args.skip_data,
-            ),
-        )
+    write_output(
+        args.output,
+        results,
+        WriteOptions(
+            skip_symbols=args.skip_symbols,
+            skip_relocations=args.skip_relocations,
+            skip_data=args.skip_data,
+        ),
+    )
 
 
 

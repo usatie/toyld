@@ -635,7 +635,7 @@ test26:
 	#   add, sub      → hard-linked stub for add.lk:  { add 5000 D, sub 5004 D }
 	#   mul           → stub for mul.lk:               { mul 5008 D }
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.pds $(TEST_DIR)/{add,mul}.lk \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.pds $(TEST_DIR)/{add,mul}.lk --format file \
 		&& $(LINK_CMD) $(BUILD_DIR)/libmath.pds --shared --base-addr 0x5000 \
 		   --stub-format directory --stub-output $(BUILD_DIR)/stublib/libmath.sso \
 		   --output $(BUILD_DIR)/lib/libmath.sso \
