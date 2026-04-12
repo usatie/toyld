@@ -98,9 +98,9 @@ test6:
 	# Test 6 for project 6.1: Create directory format library
 	# stat inode flag differs by platform: -c %i on Linux, -f %i on macOS; || fallback handles both
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
-		&& diff -r $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
-		&& [ $$(stat -c %i $(BUILD_DIR)/lib.lk/foo 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/foo) -eq $$(stat -c %i $(BUILD_DIR)/lib.lk/helper 2>/dev/null || stat -f %i $(BUILD_DIR)/lib.lk/helper) ] \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libfoo.pds $(TEST_DIR)/{foo,bar}.lk \
+		&& diff -r $(BUILD_DIR)/libfoo.pds $(TEST_DIR)/cmp \
+		&& [ $$(stat -c %i $(BUILD_DIR)/libfoo.pds/foo 2>/dev/null || stat -f %i $(BUILD_DIR)/libfoo.pds/foo) -eq $$(stat -c %i $(BUILD_DIR)/libfoo.pds/helper 2>/dev/null || stat -f %i $(BUILD_DIR)/libfoo.pds/helper) ] \
 		&& printf "$(GREEN)Test 6 passed$(RESET)""\n" || { printf "$(RED)Test 6 failed$(RESET)""\n"; false; }
 
 test7: TEST_DIR=tests/testcase7
@@ -117,12 +117,12 @@ test7:
 	# libunistd:  write + read             (write loaded by printf; read comes along for free)
 	# liberrno:   errno + strerror         (only errno loaded)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libprintf.lk $(TEST_DIR)/{printf,sprintf}.lk \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libfmt.lk $(TEST_DIR)/{format_str,format_int}.lk \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libstr.lk $(TEST_DIR)/{strlen,strchr}.lk \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libunistd.lk $(TEST_DIR)/unistd.lk \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/liberrno.lk $(TEST_DIR)/{errno,strerror}.lk \
-		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libprintf.pds $(TEST_DIR)/{printf,sprintf}.lk \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libfmt.pds $(TEST_DIR)/{format_str,format_int}.lk \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libstr.pds $(TEST_DIR)/{strlen,strchr}.lk \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libunistd.pds $(TEST_DIR)/unistd.lk \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/liberrno.pds $(TEST_DIR)/{errno,strerror}.lk \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.pds --output $(OUT) \
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 7 passed$(RESET)""\n" || { printf "$(RED)Test 7 failed$(RESET)""\n"; false; }
 
@@ -130,8 +130,8 @@ test8: TEST_DIR=tests/testcase8
 test8:
 	# Test 8 for project 6.3: Create file format library
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/lib.lk $(TEST_DIR)/{foo,bar}.lk \
-		&& diff -U 1 $(BUILD_DIR)/lib.lk $(TEST_DIR)/cmp \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libfoo.a $(TEST_DIR)/{foo,bar}.lk \
+		&& diff -U 1 $(BUILD_DIR)/libfoo.a $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 8 passed$(RESET)""\n" || { printf "$(RED)Test 8 failed$(RESET)""\n"; false; }
 
 test9: SRC_DIR=tests/testcase7
@@ -142,12 +142,12 @@ test9:
 	# instead of directories. The linker must detect LIBRARY header and seek to
 	# each module's offset to load it on demand.
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libprintf.lk $(SRC_DIR)/{printf,sprintf}.lk \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libfmt.lk $(SRC_DIR)/{format_str,format_int}.lk \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libstr.lk $(SRC_DIR)/{strlen,strchr}.lk \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libunistd.lk $(SRC_DIR)/unistd.lk \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/liberrno.lk $(SRC_DIR)/{errno,strerror}.lk \
-		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.lk --output $(OUT) \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libprintf.a $(SRC_DIR)/{printf,sprintf}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libfmt.a $(SRC_DIR)/{format_str,format_int}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libstr.a $(SRC_DIR)/{strlen,strchr}.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libunistd.a $(SRC_DIR)/unistd.lk \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/liberrno.a $(SRC_DIR)/{errno,strerror}.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(BUILD_DIR)/lib{printf,fmt,str,unistd,errno}.a --output $(OUT) \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& printf "$(GREEN)Test 9 passed$(RESET)""\n" || { printf "$(RED)Test 9 failed$(RESET)""\n"; false; }
 
@@ -458,7 +458,7 @@ test19:
 	# Input files in tests/testcase19/:
 	#   main.lk        — 12B .text (body|RS4 call→malloc|tail), 8B .data (body|AS4 fn-ptr→malloc)
 	#   wrap_malloc.lk — 12B .text (body|RS4 call→real_malloc|tail)
-	#   libmalloc.lk/  — directory library containing malloc.lk (same as testcase18)
+	#   libmalloc.pds/ — directory library containing malloc.lk (same as testcase18)
 	#                    malloc (D) → renamed real_malloc; wrap_malloc added as U
 	#
 	# After -w malloc and allocation:
@@ -476,8 +476,8 @@ test19:
 	#   main.lk .data[4]   → wrap_malloc(0x100c) → 0000100c
 	#   malloc.lk .data[4] → wrap_malloc(0x100c) → 0000100c
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
-		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmalloc.pds $(SRC_DIR)/malloc.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.pds --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& printf "$(GREEN)Test 19 passed$(RESET)""\n" || { printf "$(RED)Test 19 failed$(RESET)""\n"; false; }
 
@@ -490,8 +490,8 @@ test20:
 	# The linker must seek to the module's offset inside the archive, load malloc.lk,
 	# and apply the same wrap semantics.  Expected output is identical to test 19.
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
-		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libmalloc.lk $(SRC_DIR)/malloc.lk \
-		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.lk --output $(OUT) --byteorder big -w malloc --skip-relocation \
+		&& $(LIB_CMD) --format file --output $(BUILD_DIR)/libmalloc.a $(SRC_DIR)/malloc.lk \
+		&& $(LINK_CMD) $(SRC_DIR)/main.lk $(SRC_DIR)/wrap_malloc.lk $(BUILD_DIR)/libmalloc.a --output $(OUT) --byteorder big -w malloc --skip-relocation \
 		&& diff -U 1 $(OUT) $(CMP_DIR)/cmp \
 		&& printf "$(GREEN)Test 20 passed$(RESET)""\n" || { printf "$(RED)Test 20 failed$(RESET)""\n"; false; }
 
@@ -635,8 +635,8 @@ test26:
 	#   add, sub      → hard-linked stub for add.lk:  { add 5000 D, sub 5004 D }
 	#   mul           → stub for mul.lk:               { mul 5008 D }
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.lk $(TEST_DIR)/{add,mul}.lk \
-		&& $(LINK_CMD) $(BUILD_DIR)/libmath.lk --shared --base-addr 0x5000 \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.pds $(TEST_DIR)/{add,mul}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libmath.pds --shared --base-addr 0x5000 \
 		   --stub-format directory --stub-output $(BUILD_DIR)/stublib/libmath.sso \
 		   --output $(BUILD_DIR)/lib/libmath.sso \
 		&& diff -U 1 $(BUILD_DIR)/lib/libmath.sso $(TEST_DIR)/cmp/lib/libmath.sso \
@@ -665,8 +665,8 @@ test27:
 	#   printf        → stub for printf.lk: { printf 8000 D, write 0 U }
 	#   sprintf       → stub for sprintf.lk: { sprintf 8008 D }
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.lk $(TEST_DIR)/{printf,sprintf}.lk \
-		&& $(LINK_CMD) $(BUILD_DIR)/libprint.lk $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.pds $(TEST_DIR)/{printf,sprintf}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libprint.pds $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
 		   --stub-format directory --stub-output $(BUILD_DIR)/stublib/libprint.sso \
 		   --output $(BUILD_DIR)/lib/libprint.sso --byteorder big \
 		&& diff -U 1 $(BUILD_DIR)/lib/libprint.sso $(TEST_DIR)/cmp/lib/libprint.sso \
@@ -688,8 +688,8 @@ test28:
 	#     19 25 add sub
 	#     3e 18 mul
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.lk $(TEST_DIR)/{add,mul}.lk \
-		&& $(LINK_CMD) $(BUILD_DIR)/libmath.lk --shared --base-addr 0x5000 \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.pds $(TEST_DIR)/{add,mul}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libmath.pds --shared --base-addr 0x5000 \
 		   --stub-format file --stub-output $(BUILD_DIR)/stublib/libmath.sso \
 		   --output $(BUILD_DIR)/lib/libmath.sso \
 		&& diff -U 1 $(BUILD_DIR)/lib/libmath.sso $(TEST_DIR)/cmp/lib/libmath.sso \
@@ -720,8 +720,8 @@ test29:
 	#     24 27 printf
 	#     4b 1c sprintf
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
-		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.lk $(TEST_DIR)/{printf,sprintf}.lk \
-		&& $(LINK_CMD) $(BUILD_DIR)/libprint.lk $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
+		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.pds $(TEST_DIR)/{printf,sprintf}.lk \
+		&& $(LINK_CMD) $(BUILD_DIR)/libprint.pds $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
 		   --stub-format file --stub-output $(BUILD_DIR)/stublib/libprint.sso \
 		   --output $(BUILD_DIR)/lib/libprint.sso --byteorder big \
 		&& diff -U 1 $(BUILD_DIR)/lib/libprint.sso $(TEST_DIR)/cmp/lib/libprint.sso \

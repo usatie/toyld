@@ -134,23 +134,30 @@ For each wrapped symbol `SYM`:
 
 | Flag | Description |
 |------|-------------|
-| `--output`, `-o` | Output library name (default: `lib.lk`) |
+| `--output`, `-o` | Output library name |
 | `--format`, `-f` | Library format: `directory` (default) or `file` |
+
+Libraries use a distinct extension from plain object files (`.lk`) to make the type unambiguous at a glance:
+
+| Format | Extension | Heritage |
+|--------|-----------|---------|
+| Directory | `.pds` | IBM OS/360 Partitioned Data Set |
+| File | `.a` | Unix `ar` archive |
 
 ### Directory format
 
-The output is a directory. Each defined symbol in the input object files becomes a hard link inside the output directory pointing to the object file that defines it. This allows a linker to load only the modules needed to resolve undefined symbols by looking up a symbol name directly as a filename in the directory.
+The output is a directory (`.pds`). Each defined symbol in the input object files becomes a hard link inside the output directory pointing to the object file that defines it. This allows a linker to load only the modules needed to resolve undefined symbols by looking up a symbol name directly as a filename in the directory.
 
 Example for a library containing `foo.lk` (defines `foo` and `helper`) and `bar.lk` (defines `bar`):
 
 ```
-lib.lk/
+libfoo.pds/
 ├── foo     ← hard link to foo.lk content  (inode A)
 ├── helper  ← hard link to foo.lk content  (inode A, same file)
 └── bar     ← hard link to bar.lk content  (inode B)
 ```
 
-To resolve a symbol, the linker opens `lib.lk/<symbol>`. Because `foo` and `helper` share an inode, loading either one loads the same object module, which defines both symbols.
+To resolve a symbol, the linker opens `libfoo.pds/<symbol>`. Because `foo` and `helper` share an inode, loading either one loads the same object module, which defines both symbols.
 
 ### File format
 
@@ -177,7 +184,7 @@ d 38 foo helper
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test25)
+make           # Run all tests (test1–test29)
 make test1     # Run individual test
 ```
 
@@ -226,22 +233,22 @@ Links two object files and resolves both symbol names and values. Each global sy
 Creates a directory-format library from two object files. Each defined symbol becomes a hard link inside the output directory pointing to the object file that defines it.
 
 ```sh
-./librarian.py --output lib.lk tests/testcase6/foo.lk tests/testcase6/bar.lk
+./librarian.py --output libfoo.pds tests/testcase6/foo.lk tests/testcase6/bar.lk
 ```
 
 ### Test 7 — Linking against directory-format libraries (Project 6.2)
 Links `main.lk` against five directory-format libraries. The linker searches each library and loads only the modules needed to resolve undefined symbols, repeating until all symbols are satisfied.
 
 ```sh
-./librarian.py --output libprintf.lk tests/testcase7/{printf,sprintf}.lk
-./linker.py tests/testcase7/main.lk libprintf.lk ...
+./librarian.py --output libprintf.pds tests/testcase7/{printf,sprintf}.lk
+./linker.py tests/testcase7/main.lk libprintf.pds ...
 ```
 
 ### Test 8 — File-format library (Project 6.3)
 Creates a file-format library from two object files. The library is a single file: a header line, the concatenated module contents, and a directory at the end mapping each symbol to its module's offset and size.
 
 ```sh
-./librarian.py --format file --output lib.lk tests/testcase8/foo.lk tests/testcase8/bar.lk
+./librarian.py --format file --output libfoo.a tests/testcase8/foo.lk tests/testcase8/bar.lk
 ```
 
 ### Test 9 — Linking against file-format libraries (Project 6.4)
@@ -290,16 +297,16 @@ Links `main.lk`, `malloc.lk`, and `wrap_malloc.lk` with `-w malloc`. All referen
 Same three-module wrap scenario as Test 18, but `malloc.lk` is loaded from a directory-format library. Verifies that wrap semantics are applied to library modules pulled in during symbol resolution.
 
 ```sh
-./librarian.py --output build/libmalloc.lk tests/testcase19/malloc.lk
-./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.lk --byteorder big -w malloc
+./librarian.py --output build/libmalloc.pds tests/testcase19/malloc.lk
+./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.pds --byteorder big -w malloc
 ```
 
 ### Test 20 — `--wrap` with a file-format library (Project 8.1)
 Mirror of Test 19 using a single-file archive (`--format file`) instead of a directory library. The linker seeks to the module's offset inside the archive, loads `malloc.lk`, and applies wrap semantics. Expected output is identical to Test 19.
 
 ```sh
-./librarian.py --format file --output build/libmalloc.lk tests/testcase19/malloc.lk
-./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.lk --byteorder big -w malloc
+./librarian.py --format file --output build/libmalloc.a tests/testcase19/malloc.lk
+./linker.py tests/testcase19/{main,wrap_malloc}.lk build/libmalloc.a --byteorder big -w malloc
 ```
 
 ### Test 21 — Standalone symbol wrapper (Project 8.2)
