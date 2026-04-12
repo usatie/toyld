@@ -25,7 +25,14 @@ def parse_args():
     parser.add_argument('--output', '-o', help='Specify output file name (default: a.out.lk)', default='a.out.lk')
     parser.add_argument('--byteorder', choices=['big', 'little'], default='little', help='Specify byte order for output file (default: little)')
     parser.add_argument('--wrap', '-w', action='append', help='Use a wrapper function for SYMBOL.', metavar='SYMBOL', default=[])
-    return parser.parse_args()
+    parser.add_argument('--shared', action='store_true', help='Produce a shared library instead of an executable (default: false)', default=False)
+    parser.add_argument('--base-addr', type=lambda x: int(x, 16), help='Specify base address for output segments (default: 0x1000)', default=0x1000)
+    parser.add_argument('--stub-format', choices=['directory', 'file'], default='directory', help='Specify format for stub libraries (default: directory)')
+    parser.add_argument('--stub-output', help='Specify output file name for stub library')
+    args = parser.parse_args()
+    if args.shared and not args.stub_output:
+        parser.error("--shared requires --stub-output to be specified")
+    return args
 
 def is_object_file(filename):
     with open(filename, 'rb') as infile:
