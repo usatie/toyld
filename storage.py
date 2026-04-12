@@ -9,9 +9,9 @@ def roundup(size, alignment):
 def pad(data, alignment):
     return data + b'\x00' * (roundup(len(data), alignment) - len(data))
 
-def allocate(objs, gsymtab):
+def allocate(objs, gsymtab, base_addr):
     # start text segment at 0x1000 to leave some space for the header
-    TEXT_START = 0x1000
+    TEXT_START = base_addr
     VALID_SEGMENT_TYPES = {'RP', 'RWP', 'RW'}
     WORD_ALIGNMENT = 0x0004
     PAGE_ALIGNMENT = 0x1000

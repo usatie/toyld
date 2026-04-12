@@ -44,7 +44,7 @@ def is_library_file(filename):
         magic = infile.read(8)
         return magic == b'LIBRARY '
 
-def link_objects(input_files, byteorder, wrap_symbols):
+def link_objects(input_files, byteorder, wrap_symbols, base_addr):
     # Input files may contain libraries (directory format), so we need to exclude them
     library_dirs = []
     library_files = []
@@ -67,7 +67,7 @@ def link_objects(input_files, byteorder, wrap_symbols):
     gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab)
+    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr)
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
@@ -127,7 +127,7 @@ def main():
         )
     else:
         # Multiple input files, need to link them together
-        results = link_objects(args.input_files, args.byteorder, args.wrap)
+        results = link_objects(args.input_files, args.byteorder, args.wrap, args.base_addr)
         write_output(
             args.output,
             results,
