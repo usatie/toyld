@@ -113,7 +113,7 @@ def write_output(filename, link_results, options):
 
 def main():
     args = parse_args()
-    if len(args.input_files) == 1:
+    if len(args.input_files) == 1 and args.shared == False:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])
         write_output(
