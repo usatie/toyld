@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import Object, Relocation, parse_objects, parse_object, parse_module
+from object import Object, Segment, Relocation, parse_objects, parse_object, parse_module
 import storage
 import symbol
 import relocation
@@ -32,6 +32,8 @@ def parse_args():
     args = parser.parse_args()
     if args.shared and not args.stub_output:
         parser.error("--shared requires --stub-output to be specified")
+    if args.shared and os.path.basename(args.stub_output) != os.path.basename(args.output):
+        parser.error(f"--stub-output file name must be the same as output file name when --shared is specified. Expected '{os.path.basename(args.output)}', got '{os.path.basename(args.stub_output)}'")
     return args
 
 def is_object_file(filename):
@@ -173,10 +175,60 @@ def write_output(filename, link_results, options):
     with open(filename, 'wb') as outfile:
         outfile.write(contents)
 
+def write_stub_library(filename, link_results, stub_format):
+    if stub_format == 'directory':
+        write_stub_library_directory(filename, link_results)
+    elif stub_format == 'file':
+        write_stub_library_file(filename, link_results)
+    else:
+        print(f"Error: Invalid stub format '{stub_format}' specified", file=sys.stderr)
+        sys.exit(1)
+
+def write_stub_library_directory(output_dir, link_results):
+    out_segments, out_symbols, out_relocations, out_data = link_results
+
+    # Create output directory
+    if os.path.exists(output_dir):
+        print(f"Output directory '{output_dir}' already exists. Please remove it or choose a different name.", file=sys.stderr)
+        sys.exit(1)
+    os.mkdir(output_dir)
+    
+    # Add "LIBRARY NAME" file
+    library_name_file = os.path.join(output_dir, 'LIBRARY NAME')
+    with open(library_name_file, 'w') as f:
+        # TODO: Add dependent library names to the "LIBRARY NAME" file
+        lib_name = os.path.basename(output_dir)
+        f.write(f"{lib_name}\n")
+
+    # Create a temporary output file to link from (the contents don't matter since we will skip symbols and relocations when writing the output)
+    temp_file = os.path.join(output_dir, 'TEMP_STUB_FILE')
+
+    # Remove 'P' from segment name if it exists, since it's not valid for object files
+    stub_out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter.replace('P', '')) for seg in out_segments]
+    write_output(
+        temp_file,
+        (stub_out_segments, out_symbols, [], []),
+        WriteOptions(
+            skip_symbols=False,
+            skip_relocations=True,
+            skip_data=True,
+        ),
+    )
+
+    # Add hardlinks to each symbol in the output directory
+    for name in out_symbols.keys():
+        link_path = os.path.join(output_dir, name)
+        os.link(temp_file, link_path)
+
+    # Delete the output file (the hardlink will still exist in the output directory)
+    os.remove(temp_file)
+
 def main():
     args = parse_args()
     if args.shared:
         results = link_shared_library(args.input_files, args.byteorder, args.wrap, args.base_addr)
+        # TODO: Write stub library
+        write_stub_library(args.stub_output, results, args.stub_format)
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])
@@ -193,8 +245,6 @@ def main():
             skip_data=args.skip_data,
         ),
     )
-
-
 
 if __name__ == '__main__':
     main()
