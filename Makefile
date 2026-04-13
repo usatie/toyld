@@ -14,10 +14,10 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@passed=0; total=25; \
-	for t in $$(seq 1 25); do \
-		result=$$($(MAKE) --no-print-directory -s test$$t 2>&1); \
-		if echo "$$result" | grep -q "passed"; then \
+	@passed=0; total=29; \
+	for t in $$(seq 1 29); do \
+		$(MAKE) --no-print-directory -s test$$t >/dev/null 2>&1; \
+		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
 			printf "$(GREEN)Test %2d passed$(RESET)\n" $$t; \
 		else \
@@ -37,9 +37,8 @@ ci:
 	@passed=0; failed=0; total=25; \
 	for t in $$(seq 1 25); do \
 		printf "=== Test $$t ===\n"; \
-		result=$$($(MAKE) --no-print-directory test$$t 2>&1); \
-		printf "%s\n" "$$result"; \
-		if echo "$$result" | grep -q "passed"; then \
+		$(MAKE) --no-print-directory test$$t 2>&1; \
+		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
 		else \
 			failed=$$((failed+1)); \
