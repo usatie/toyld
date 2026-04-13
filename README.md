@@ -33,6 +33,10 @@ This project implements a linker and librarian that process a simple text-based 
 | 8.3 | Ch. 8 | linker | GA4 relocation — GOT address (PC-relative distance to GOT) |
 | 8.3 | Ch. 8 | linker | GR4 relocation — GOT-relative local address |
 | 8.3 | Ch. 8 | linker | ER4 output — executable-relative entries from A4/AS4 inputs and GOT slots |
+| 9.1 | Ch. 9 | linker | Static shared library creation with directory-format stub (`--shared`) |
+| 9.1 | Ch. 9 | linker | Static shared library with cross-library dependency in directory-format stub |
+| 9.1 | Ch. 9 | linker | Static shared library creation with file-format stub (`--stub-format file`) |
+| 9.1 | Ch. 9 | linker | Static shared library using file-format input stub, producing file-format output stub |
 
 ## Object File Format (`.lk`)
 
@@ -95,15 +99,18 @@ bar 20 2 U
 
 | Flag | Description |
 |------|-------------|
+| `--output`, `-o` | Output file name (default: `a.out.lk`) |
 | `--skip-symbols` | Omit symbol table from output |
 | `--skip-relocations` | Omit relocation entries from output |
 | `--skip-data` | Omit data section from output |
 | `--common` | Allocate common blocks at the end of `.bss` |
 | `--byteorder big\|little` | Byte order for relocation patches (default: `little`) |
 | `--wrap SYM`, `-w SYM` | Redirect references to `SYM` → `wrap_SYM`; rename `SYM` → `real_SYM` |
+| `--shared` | Produce a static shared library; requires `--stub-output` |
+| `--base-addr ADDR` | Base address for segment allocation in hex (default: `0x1000`) |
+| `--stub-format directory\|file` | Format for the output stub library (default: `directory`) |
+| `--stub-output PATH` | Output path for the stub library (required with `--shared`) |
 | `--debug` | Print debug info to stderr |
-
-Output is always written to `a.out.lk`.
 
 ### Symbol Wrapper
 
@@ -143,6 +150,50 @@ Libraries use a distinct extension from plain object files (`.lk`) to make the t
 |--------|-----------|---------|
 | Directory | `.pds` | IBM OS/360 Partitioned Data Set |
 | File | `.a` | Unix `ar` archive |
+
+### Shared Libraries
+
+The linker can produce a **static shared library** from a regular library input using `--shared`. A shared library is a fully linked object file (all symbols resolved, no outstanding relocations) allocated at a fixed base address. Its extension is `.sso` (shared static object).
+
+```sh
+./librarian.py --output libfoo.pds foo.lk bar.lk
+./linker.py libfoo.pds --shared --base-addr 0x5000 \
+    --output lib/libfoo.sso \
+    --stub-format directory --stub-output stublib/libfoo.sso
+```
+
+Along with the shared library itself the linker writes a **stub library** — a directory-format or file-format library whose entries are data-trimmed copies of the shared library. Each entry has the same segment layout as the `.sso` (with the `P` flag removed from each segment) and all exported symbols at their absolute addresses, but no data bytes. All entries in the stub are hard links to the same content.
+
+Stub libraries share the `.sso` extension with the shared library they describe but are placed in a separate directory (conventionally `stublib/`).
+
+#### Directory-format stub
+
+The stub is a directory. A special file `LIBRARY NAME` records the name of the shared library on its first line, followed by the names of any other shared libraries it depends on:
+
+```
+LIBRARY NAME
+libfoo.sso
+libbar.sso        ← dependency
+```
+
+Each defined symbol in the shared library becomes a filename inside the directory. All entries are hard links to the same data-trimmed `.sso` content:
+
+```
+stublib/libfoo.sso/
+├── LIBRARY NAME  ← dependency list
+├── foo           ← hard link (inode A)
+└── bar           ← hard link (inode A, same content)
+```
+
+#### File-format stub
+
+The stub is a single file. The header line has extra fields beyond the standard `LIBRARY <nmods> <diroff>`:
+
+```
+LIBRARY <nmods> <diroff> <libname> [<dep1> <dep2> ...]
+```
+
+`<libname>` is the name of the shared library this stub describes; subsequent fields are dependency library names. The rest of the format (module contents and directory) is identical to a regular file-format library, with one module per defined symbol group — in practice one module containing the data-trimmed shared library content, with all defined symbols listed in the directory entry.
 
 ### Directory format
 
@@ -342,6 +393,46 @@ Links two object files where `main.lk` has an `A4` (absolute segment reference) 
 
 ```sh
 ./linker.py tests/testcase25/main.lk tests/testcase25/other.lk --byteorder big
+```
+
+### Test 26 — Static shared library, directory-format stub, no external deps (Project 9.1)
+Creates a shared library from `add.lk` (defines `add`, `sub`) and `mul.lk` (defines `mul`), allocated at base address `0x5000`. Produces `lib/libmath.sso` (the shared library) and `stublib/libmath.sso/` (a directory-format stub). The stub's `add`, `sub`, and `mul` entries are all hard links to the same data-trimmed copy of the shared library (segments without `P` flag, absolute symbol values, no data bytes).
+
+```sh
+./librarian.py --format file --output build/libmath.pds tests/testcase26/{add,mul}.lk
+./linker.py build/libmath.pds --shared --base-addr 0x5000 \
+    --output build/lib/libmath.sso \
+    --stub-format directory --stub-output build/stublib/libmath.sso
+```
+
+### Test 27 — Static shared library with cross-library dependency, directory-format stub (Project 9.1)
+Creates a shared library from `printf.lk` (defines `printf`, references external `write`) and `sprintf.lk` (defines `sprintf`), linked against the directory-format input stub `libio.sso` which provides `write=0x3000`. The `LIBRARY NAME` file in the output stub records both `libprint.sso` and `libio.sso`, so downstream linkers know the dependency chain. The `printf` and `sprintf` stub entries are hard links to the same data-trimmed `libprint.sso`.
+
+```sh
+./librarian.py --output build/libprint.pds tests/testcase27/{printf,sprintf}.lk
+./linker.py build/libprint.pds tests/testcase27/libio.sso --shared --base-addr 0x8000 \
+    --byteorder big --output build/lib/libprint.sso \
+    --stub-format directory --stub-output build/stublib/libprint.sso
+```
+
+### Test 28 — Static shared library, file-format stub, no external deps (Project 9.1)
+Same modules as Test 26 (`add.lk`, `mul.lk`), same shared library output. The difference is that the stub is a single-file archive (`--stub-format file`). The file contains one module — the data-trimmed shared library — and a directory entry listing all three symbols (`add`, `sub`, `mul`) pointing to that module.
+
+```sh
+./librarian.py --output build/libmath.pds tests/testcase28/{add,mul}.lk
+./linker.py build/libmath.pds --shared --base-addr 0x5000 \
+    --output build/lib/libmath.sso \
+    --stub-format file --stub-output build/stublib/libmath.sso
+```
+
+### Test 29 — Static shared library using file-format input stub, file-format output stub (Project 9.1)
+Same modules as Test 27, but `libio.sso` is a file-format input stub. Produces a file-format output stub `libprint.sso` whose header names both `libprint.sso` and `libio.sso` as the dependency chain. The stub contains one module (the data-trimmed shared library) with both `printf` and `sprintf` in its directory entry.
+
+```sh
+./librarian.py --output build/libprint.pds tests/testcase29/{printf,sprintf}.lk
+./linker.py build/libprint.pds tests/testcase29/libio.sso --shared --base-addr 0x8000 \
+    --byteorder big --output build/lib/libprint.sso \
+    --stub-format file --stub-output build/stublib/libprint.sso
 ```
 
 ## Storage Allocation Strategy
