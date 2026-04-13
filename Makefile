@@ -662,8 +662,8 @@ test27:
 	#
 	# Stub (stublib/libprint.sso, directory format):
 	#   LIBRARY NAME  → "libprint.sso\nlibio.sso\n"  (libio.sso listed as dependency)
-	#   printf        → stub for printf.lk: { printf 8000 D, write 0 U }
-	#   sprintf       → stub for sprintf.lk: { sprintf 8008 D }
+	#   printf        → data-trimmed libprint.sso: { .text 8000 c R, printf 8000 D, sprintf 8008 D }
+	#   sprintf       → data-trimmed libprint.sso: (same content, hard-linked)
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
 		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.pds $(TEST_DIR)/{printf,sprintf}.lk \
 		&& $(LINK_CMD) $(BUILD_DIR)/libprint.pds $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
