@@ -43,8 +43,21 @@ def is_object_file(filename):
 
 def is_library_file(filename):
     with open(filename, 'rb') as infile:
-        magic = infile.read(8)
-        return magic == b'LIBRARY '
+        line = infile.readline()
+        fields = line.strip().split()
+        magic = fields[0] if len(fields) > 0 else b''
+        return magic == b'LIBRARY' and len(fields) == 3
+
+def is_stub_library_file(filename):
+    with open(filename, 'rb') as infile:
+        line = infile.readline()
+        fields = line.strip().split()
+        magic = fields[0] if len(fields) > 0 else b''
+        return magic == b'LIBRARY' and len(fields) > 3
+
+def is_stub_library_directory(dirname):
+    # If "LIBRARY NAME" file exists, it's a stub library
+    return os.path.isfile(os.path.join(dirname, 'LIBRARY NAME'))
 
 def link_objects(input_files, byteorder, wrap_symbols, base_addr):
     # Input files may contain libraries, so we need to separately treat them
@@ -113,6 +126,9 @@ def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     library_files = []
     for f in input_files:
         if os.path.isdir(f):
+            if is_stub_library_directory(f):
+                print(f"Not implemented: {f} is a stub library directory, but linking from stub libraries is not implemented yet", file=sys.stderr)
+                sys.exit(1)
             library_dirs.append(f)
         elif is_library_file(f):
             library_files.append(f)
