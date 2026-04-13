@@ -1,3 +1,8 @@
 LINK
-0 1 0
+3 3 0
+.text 5000 c R
+.data 6000 0 RW
+.bss 6000 0 RW
+add 5000 0 D
+sub 5004 0 D
 mul 5008 0 D
