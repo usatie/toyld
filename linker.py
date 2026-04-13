@@ -205,6 +205,52 @@ def write_stub_library(filename, link_results, stub_format):
         print(f"Error: Invalid stub format '{stub_format}' specified", file=sys.stderr)
         sys.exit(1)
 
+def write_stub_library_file(output_file, link_results):
+    out_segments, out_symbols, out_relocations, out_data, dependencies = link_results
+    stub_out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter.replace('P', '')) for seg in out_segments]
+
+    # Module content (only one)
+    mod = Object(
+        filename='',
+        num_segments=len(stub_out_segments),
+        num_symbols=len(out_symbols),
+        num_relocations=0,
+        segments=stub_out_segments,
+        symbols=out_symbols,
+        relocations=[],
+        data=[]
+    )
+    contents = mod.serialize(
+        skip_symbols=False,
+        skip_relocations=True,
+        skip_data=True
+        )
+    mod_size = len(contents)
+
+    # Header (only one module, so it's deterministic)
+    tmp_dir_offset = 0x10 + mod_size
+    num_files = 1
+    dependencies = [os.path.basename(output_file)]
+    dep_str = ' '.join(dependencies)
+    header = f"LIBRARY {num_files:x} {tmp_dir_offset:x} {dep_str}\n".encode()
+    dir_offset = len(header) + len(contents)
+    while dir_offset != tmp_dir_offset:
+        tmp_dir_offset = dir_offset
+        header = f"LIBRARY {num_files:x} {tmp_dir_offset:x} {dep_str}\n".encode()
+        dir_offset = len(header) + len(contents)
+
+    # Directory entries (one per symbol)
+    dir_entries = b''
+    mod_offset = len(header)
+    symbols_str = ' '.join(name for name, sym in mod.symbols.items() if sym.sym_type == 'D' or (sym.sym_type == 'U' and sym.value > 0))
+    dir_entries += f"{mod_offset:x} {mod_size:x} {symbols_str}\n".encode()
+
+    # Write
+    with open(output_file, 'wb') as outfile:
+        outfile.write(header)
+        outfile.write(contents)
+        outfile.write(dir_entries)
+
 def write_stub_library_directory(output_dir, link_results):
     out_segments, out_symbols, out_relocations, out_data, dependencies = link_results
 

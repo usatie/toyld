@@ -681,12 +681,10 @@ test28:
 	# Key difference: stub output is a single file-format archive (stublib/libmath.sso).
 	#
 	# File-format stub layout (libmath.sso):
-	#   Header:   LIBRARY 2 56 libmath.sso  (25 bytes = 0x19)
-	#   Module 1: add.lk stub at 0x19       (37 bytes = 0x25): { add 5000 D, sub 5004 D }
-	#   Module 2: mul.lk stub at 0x3e       (24 bytes = 0x18): { mul 5008 D }
-	#   Directory at 0x56:
-	#     19 25 add sub
-	#     3e 18 mul
+	#   Header:   LIBRARY 1 79 libmath.sso  (25 bytes = 0x19)
+	#   Module 1: data-trimmed libmath.sso at 0x19  (96 bytes = 0x60): { .text 5000 c R, .data 6000 0 RW, .bss 6000 0 RW, add 5000 D, sub 5004 D, mul 5008 D }
+	#   Directory at 0x79:
+	#     19 60 add sub mul
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
 		&& $(LIB_CMD) --output $(BUILD_DIR)/libmath.pds $(TEST_DIR)/{add,mul}.lk \
 		&& $(LINK_CMD) $(BUILD_DIR)/libmath.pds --shared --base-addr 0x5000 \
