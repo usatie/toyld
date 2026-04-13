@@ -230,8 +230,7 @@ def write_stub_library_file(output_file, link_results):
     # Header (only one module, so it's deterministic)
     tmp_dir_offset = 0x10 + mod_size
     num_files = 1
-    dependencies = [os.path.basename(output_file)]
-    dep_str = ' '.join(dependencies)
+    dep_str = ' '.join([os.path.basename(f) for f in [output_file] + dependencies])
     header = f"LIBRARY {num_files:x} {tmp_dir_offset:x} {dep_str}\n".encode()
     dir_offset = len(header) + len(contents)
     while dir_offset != tmp_dir_offset:

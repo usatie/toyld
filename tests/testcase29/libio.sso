@@ -1,5 +1,8 @@
-LIBRARY 1 31 libio.sso
+LIBRARY 1 5f libio.sso
 LINK
-0 1 0
+3 1 0
+.text 3000 4 R
+.data 4000 0 RW
+.bss 4000 0 RW
 write 3000 0 D
-17 1a write
+17 48 write

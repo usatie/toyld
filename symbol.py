@@ -72,7 +72,7 @@ def collect_symbols(library_dirs, library_files, is_stub_library=False):
     for file in library_files:
         with open(file, 'r') as f:
             line = f.readline()
-            magic, nmods, dir_offset = line.strip().split()
+            magic, nmods, dir_offset, *deps = line.strip().split()
             nmods = int(nmods, 16)
             dir_offset = int(dir_offset, 16)
             dprint(f"Reading library file '{file}' with {nmods} modules and directory offset {dir_offset}")

@@ -702,21 +702,19 @@ test29:
 	# printf.lk: defines printf (.text 8B), imports write via AS4 reloc at .text[4]
 	# sprintf.lk: defines sprintf (.text 4B), no external refs
 	# libio.sso: file-format input stub; provides write=0x3000 from libio.sso
-	#   Header: LIBRARY 1 31 libio.sso  (23 bytes = 0x17)
-	#   Module 1: write stub at 0x17   (26 bytes = 0x1a): { write 3000 D }
-	#   Directory at 0x31: 17 1a write
+	#   Header: LIBRARY 1 5f libio.sso  (23 bytes = 0x17)
+	#   Module 1: write stub at 0x17   (72 bytes = 0x48): { .text 3000 4 R, .data 4000 0 RW, .bss 4000 0 RW, write 3000 D }
+	#   Directory at 0x5f: 17 48 write
 	#
 	# Linked at --base-addr 0x8000 (big-endian):
 	#   printf.lk .text → 0x8000: printf=0x8000; AS4 patch → write(0x3000) → 00003000
 	#   sprintf.lk .text → 0x8008: sprintf=0x8008
 	#
 	# File-format output stub (stublib/libprint.sso):
-	#   Header:   LIBRARY 2 67 libprint.sso libio.sso  (36 bytes = 0x24)
-	#   Module 1: printf.lk stub at 0x24              (39 bytes = 0x27): { printf 8000 D, write 0 U }
-	#   Module 2: sprintf.lk stub at 0x4b             (28 bytes = 0x1c): { sprintf 8008 D }
-	#   Directory at 0x67:
-	#     24 27 printf
-	#     4b 1c sprintf
+	#   Header:   LIBRARY 1 7e libprint.sso libio.sso  (36 bytes = 0x24)
+	#   Module 1: data-trimmed libprint.sso at 0x24   (90 bytes = 0x5a): { .text 8000 c R, .data 9000 0 RW, .bss 9000 0 RW, printf 8000 D, sprintf 8008 D }
+	#   Directory at 0x7e:
+	#     24 5a printf sprintf
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR)/lib $(BUILD_DIR)/stublib \
 		&& $(LIB_CMD) --output $(BUILD_DIR)/libprint.pds $(TEST_DIR)/{printf,sprintf}.lk \
 		&& $(LINK_CMD) $(BUILD_DIR)/libprint.pds $(TEST_DIR)/libio.sso --shared --base-addr 0x8000 \
