@@ -35,27 +35,39 @@ class GlobalSymbol:
 
 class Module:
     @staticmethod
-    def file_format(filename, offset, size):
+    def file_format(filename, offset, size, is_stub_library):
         mod = Module()
         mod.filename = filename
         mod.offset = offset
         mod.size = size
+        mod.is_stub_library = is_stub_library
         mod.format = 'file'
         return mod
     
     @staticmethod
-    def dir_format(filename):
+    def dir_format(filename, is_stub_library):
         mod = Module()
         mod.filename = filename
+        mod.is_stub_library = is_stub_library
         mod.format = 'dir'
         return mod
 
-def collect_symbols(library_dirs, library_files):
+    def __repr__(self):
+        if self.format == 'file':
+            return f"Module(file='{self.filename}', offset={self.offset:x}, size={self.size:x}, is_stub_library={self.is_stub_library})"
+        elif self.format == 'dir':
+            return f"Module(dir='{self.filename}', is_stub_library={self.is_stub_library})"
+
+def collect_symbols(library_dirs, library_files, is_stub_library=False):
     symtab = {}
     for lib_dir in library_dirs:
-        for filename in os.listdir(lib_dir):
+        entries = os.listdir(lib_dir)
+        for filename in sorted(entries):
+            # 'LIBRARY NAME' is the special file in stub libraries
+            if filename == 'LIBRARY NAME':
+                continue
             symbol_name = filename
-            symtab[symbol_name] = Module.dir_format(os.path.join(lib_dir, symbol_name))
+            symtab[symbol_name] = Module.dir_format(os.path.join(lib_dir, symbol_name), is_stub_library)
 
     for file in library_files:
         with open(file, 'r') as f:
@@ -75,10 +87,9 @@ def collect_symbols(library_dirs, library_files):
                     if sym in symtab:
                         print(f"Error: symbol '{sym}' is multiply defined in library files '{symtab[sym].filename}' and '{file}'", file=sys.stderr)
                         sys.exit(1)
-                    symtab[sym] = Module.file_format(file, mod_offset, mod_size)
+                    symtab[sym] = Module.file_format(file, mod_offset, mod_size, is_stub_library)
     dprint(f"Collected {len(symtab)} symbols from libraries")
     dprint(f"Library symbol table: {symtab}")
-
     return symtab
 
 def _merge_symbol(lsym, o, gsymtab):
@@ -145,9 +156,9 @@ def resolve_names(objs, lib_symtab, wrap_symbols):
             mod = search_module(search_key, lib_symtab)
             dprint(f"Resolving symbol '{search_key}' from library file '{lib_symtab[search_key]}'")
             if mod.format == 'dir':
-                lib_obj = parse_object(mod.filename)
+                lib_obj = parse_object(mod.filename, mod.is_stub_library)
             elif mod.format == 'file':
-                lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size)
+                lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size, is_stub_library=mod.is_stub_library)
             if is_wrapped_symbol:
                 apply_wraps([lib_obj], wrap_symbols)
             to_visit.append(lib_obj)

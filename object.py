@@ -5,7 +5,7 @@ DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
 class Object:
-    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None):
+    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None, is_stub_library=False):
         self.filename = filename
         self.num_segments = num_segments
         self.num_symbols = num_symbols
@@ -14,6 +14,7 @@ class Object:
         self.symbols = symbols
         self.relocations = relocations
         self.data = data
+        self.is_stub_library = is_stub_library
 
     def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         contents = b''
@@ -48,7 +49,7 @@ class Object:
         return contents
 
     def __repr__(self):
-        return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0})"
+        return f"Object(filename={self.filename}, segments={self.segments}, symbols={self.symbols}, relocations={self.relocations}, data_length={len(self.data) if self.data else 0}, is_stub_library={self.is_stub_library})"
 
 class Segment:
     def __init__(self, name, start, size, code_letter):
@@ -206,19 +207,19 @@ class LimitedReader(io.RawIOBase):
     def readable(self):
         return True
 
-def parse_object(filename):
+def parse_object(filename, is_stub_library=False):
     dprint(f"Processing input file: {filename}")
     with open(filename, 'rb') as infile:
-        return _parse_object(filename, infile)
+        return _parse_object(filename, infile, is_stub_library)
 
-def parse_module(filename, offset, size):
+def parse_module(filename, offset, size, is_stub_library=False):
     dprint(f"Processing input file: {filename} with offset={offset} and size={size}")
     with open(filename, 'rb') as infile:
         infile.seek(offset)
         reader = io.BufferedReader(LimitedReader(infile.raw, size))
-        return _parse_object(filename, reader)
+        return _parse_object(filename, reader, is_stub_library)
 
-def _parse_object(filename, reader):
+def _parse_object(filename, reader, is_stub_library):
     # Check magic number: 'LINK'
     line = read_next_line(reader)
     if line != b'LINK':
@@ -232,13 +233,16 @@ def _parse_object(filename, reader):
         # num are written in hex, so we need to convert them from hex to int
         num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
         dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-        obj = Object(filename, num_segments, num_symbols, num_relocations)
+        obj = Object(filename, num_segments, num_symbols, num_relocations, is_stub_library=is_stub_library)
     except ValueError:
         print("Invalid header format: expected three integers", file=sys.stderr)
         sys.exit(1)
 
     # Read segments
     obj.segments = parse_segments(reader, obj.num_segments)
+    if is_stub_library:
+        for seg in obj.segments:
+            seg.assigned_address = 0  # For stub libraries, we can assign 0 since they are fixed absolute addresses
     dprint(f"Segments: {obj.segments}")
 
     # Read symbols

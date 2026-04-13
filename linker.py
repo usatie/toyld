@@ -95,7 +95,8 @@ def collect_objecs(library_dirs, library_files):
     objs = []
     for lib_dir in library_dirs:
         distinct_object_files = set()
-        for filename in os.listdir(lib_dir):
+        entries = os.listdir(lib_dir)
+        for filename in sorted(entries):
             # Check if the file is already included (same inode)
             file_path = os.path.join(lib_dir, filename)
             file_inode = os.stat(file_path).st_ino
@@ -121,17 +122,20 @@ def collect_objecs(library_dirs, library_files):
 
 def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     # Input files shall be only libraries
-    # TODO: We need to distinct stub libraries
     library_dirs = []
     library_files = []
+    stub_library_dirs = []
+    stub_library_files = []
     for f in input_files:
         if os.path.isdir(f):
             if is_stub_library_directory(f):
-                print(f"Not implemented: {f} is a stub library directory, but linking from stub libraries is not implemented yet", file=sys.stderr)
-                sys.exit(1)
-            library_dirs.append(f)
+                stub_library_dirs.append(f)
+            else:
+                library_dirs.append(f)
         elif is_library_file(f):
             library_files.append(f)
+        elif is_stub_library_file(f):
+            stub_library_files.append(f)
         elif is_object_file(f):
             print(f"Warning: {f} is an object file, but --shared option is specified. Input files for shared library should be libraries, skipping", file=sys.stderr)
             sys.exit(1)
@@ -141,7 +145,7 @@ def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     objs = collect_objecs(library_dirs, library_files)
 
     # Link collected objects
-    lib_symtab = {}
+    lib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
 
     # Resolve symbol names
     symbol.apply_wraps(objs, wrap_symbols)
@@ -151,11 +155,12 @@ def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     out_segments, gdata = storage.allocate(objs, gsymtab, base_addr)
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
-    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
+    # Filter out symbols from stub libraries since they're already resolved and should not be exported in the shared library
+    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
     out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
     out_data = [v for v in gdata.values()]
 
-    return out_segments, out_symbols, out_relocations, out_data
+    return out_segments, out_symbols, out_relocations, out_data, stub_library_dirs + stub_library_files
 
 class WriteOptions:
     def __init__(self, skip_symbols, skip_relocations, skip_data):
@@ -201,7 +206,7 @@ def write_stub_library(filename, link_results, stub_format):
         sys.exit(1)
 
 def write_stub_library_directory(output_dir, link_results):
-    out_segments, out_symbols, out_relocations, out_data = link_results
+    out_segments, out_symbols, out_relocations, out_data, dependencies = link_results
 
     # Create output directory
     if os.path.exists(output_dir):
@@ -212,9 +217,13 @@ def write_stub_library_directory(output_dir, link_results):
     # Add "LIBRARY NAME" file
     library_name_file = os.path.join(output_dir, 'LIBRARY NAME')
     with open(library_name_file, 'w') as f:
-        # TODO: Add dependent library names to the "LIBRARY NAME" file
+        # Library name itself
         lib_name = os.path.basename(output_dir)
         f.write(f"{lib_name}\n")
+        # List dependencies (one per line)
+        for dep in dependencies:
+            dep_name = os.path.basename(dep)
+            f.write(f"{dep_name}\n")
 
     # Create a temporary output file to link from (the contents don't matter since we will skip symbols and relocations when writing the output)
     temp_file = os.path.join(output_dir, 'TEMP_STUB_FILE')
@@ -243,8 +252,9 @@ def main():
     args = parse_args()
     if args.shared:
         results = link_shared_library(args.input_files, args.byteorder, args.wrap, args.base_addr)
-        # TODO: Write stub library
         write_stub_library(args.stub_output, results, args.stub_format)
+        results = results[:4]
+        args.skip_relocations = True # For shared library, we can't have relocations
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])

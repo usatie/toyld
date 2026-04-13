@@ -20,10 +20,11 @@ def allocate(objs, gsymtab, base_addr):
     text_segments = {'.text': None}
     data_segments = {'.data': None}
     bss_segments = {'.bss': None}
+    objs = [o for o in objs if not o.is_stub_library]
     for o in objs:
         for lseg in o.segments:
             if lseg.code_letter not in VALID_SEGMENT_TYPES:
-                print(f"Invalid code letter '{lseg.code_letter}' in segment '{lseg.name}' from file '{lseg.filename}'", file=sys.stderr)
+                print(f"Invalid code letter '{lseg.code_letter}' in segment '{lseg.name}' in file '{o.filename}'", file=sys.stderr)
                 sys.exit(1)
             if lseg.code_letter == 'RP':
                 text_segments[lseg.name] = None
