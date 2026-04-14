@@ -7,12 +7,21 @@ DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
 class GlobalSymbol:
-    def __init__(self, lsym, obj):
-        self.name = lsym.name
+    def __init__(self, name, obj, lsym, value):
+        self.name = name
         self.obj = obj
         self.lsym = lsym
-        self.value = lsym.value
+        self.value = value
         self.got_offset = None
+
+    @classmethod
+    def from_local(cls, lsym, obj):
+        return cls(
+            name=lsym.name,
+            obj=obj,
+            lsym=lsym,
+            value=lsym.value
+            )
 
     @property
     def is_defined(self):
@@ -27,8 +36,7 @@ class GlobalSymbol:
         return self.lsym.is_undefined
 
     def to_local(self):
-        SYM_ABSOLUTE = 0
-        return Symbol(self.name, self.value, SYM_ABSOLUTE, 'D', 0)
+        return Symbol.absolute(self.name, self.value)
 
     def __repr__(self):
         return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, is_common={self.is_common}, obj={self.obj.filename}, value={self.value})"
@@ -51,6 +59,12 @@ class Module:
         mod.is_stub_library = is_stub_library
         mod.format = 'dir'
         return mod
+
+    def library_name(self):
+        if self.format == 'file':
+            return os.path.basename(self.filename)
+        elif self.format == 'dir':
+            return os.path.basename(os.path.dirname(self.filename))
 
     def __repr__(self):
         if self.format == 'file':
@@ -94,7 +108,7 @@ def collect_symbols(library_dirs, library_files, is_stub_library=False):
 
 def _merge_symbol(lsym, o, gsymtab):
     if lsym.name not in gsymtab:
-        gsymtab[lsym.name] = GlobalSymbol(lsym, o)
+        gsymtab[lsym.name] = GlobalSymbol.from_local(lsym, o)
         return
 
     gsym = gsymtab[lsym.name]
@@ -159,6 +173,7 @@ def resolve_names(objs, lib_symtab, wrap_symbols):
                 lib_obj = parse_object(mod.filename, mod.is_stub_library)
             elif mod.format == 'file':
                 lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size, is_stub_library=mod.is_stub_library)
+            lib_obj.mod = mod
             if is_wrapped_symbol:
                 apply_wraps([lib_obj], wrap_symbols)
             to_visit.append(lib_obj)

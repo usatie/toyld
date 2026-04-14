@@ -15,6 +15,7 @@ class Object:
         self.relocations = relocations
         self.data = data
         self.is_stub_library = is_stub_library
+        self.mod = None  # this will be used to store the Module object that this Object belongs to when we parse the input files into Modules and Objects
 
     def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         contents = b''
@@ -65,13 +66,21 @@ class Segment:
         else:
             return f"Segment(name={self.name}, start={self.start:x}, size={self.size:x}, code_letter={self.code_letter}, assigned_address={self.assigned_address:x})"
 
+"""
+The name is the symbol name. The value is the hexadecimal value of the sym-bol. seg is the segment number relative to which the segment is defined (0 for absolute or undefined symbols). The type is a string of letters that includes D for defined or U for undefined. Symbols are also numbered in the order they're listed, starting at 1.
+"""
 class Symbol:
-    def __init__(self, name, value, seg_number, sym_type, number):
+    def __init__(self, name, value, seg_number, sym_type, number=None):
         self.name = name
         self.value = value
         self.seg_number = seg_number
         self.sym_type = sym_type
         self.number = number
+
+    @classmethod
+    def absolute(cls, name, value):
+        # Absolute symbols are defined symbols, their value is an absolute address
+        return cls(name=name, value=value, seg_number=0, sym_type='D')
 
     @property
     def is_defined(self):

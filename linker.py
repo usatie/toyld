@@ -4,7 +4,7 @@ import argparse
 import os
 import sys
 
-from object import Object, Segment, Relocation, parse_objects, parse_object, parse_module
+from object import Object, Segment, Symbol, Relocation, parse_objects, parse_object, parse_module
 import storage
 import symbol
 import relocation
@@ -63,29 +63,50 @@ def link_objects(input_files, byteorder, wrap_symbols, base_addr):
     # Input files may contain libraries, so we need to separately treat them
     library_dirs = []
     library_files = []
+    stub_library_dirs = []
+    stub_library_files = []
     object_files = []
     for f in input_files:
         if os.path.isdir(f):
-            library_dirs.append(f)
-        elif is_object_file(f):
-            object_files.append(f)
+            if is_stub_library_directory(f):
+                stub_library_dirs.append(f)
+            else:
+                library_dirs.append(f)
         elif is_library_file(f):
             library_files.append(f)
+        elif is_stub_library_file(f):
+            stub_library_files.append(f)
+        elif is_object_file(f):
+            object_files.append(f)
         else:
             print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
             sys.exit(1)
     objs = parse_objects(object_files)
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
+    stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
+    if lib_symtab.keys() & stublib_symtab.keys():
+        print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
+        sys.exit(1)
+    lib_symtab.update(stublib_symtab)
 
     # Resolve symbol names
     symbol.apply_wraps(objs, wrap_symbols)
     gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr)
+    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr, output_type='executable')
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
-    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items()}
+
+    # Filter out symbols from stub libraries (they're already resolved and should not be exported in the executable)
+    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
+
+    # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
+    lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
+    if lib_seg:
+        out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
+
+    # Relocate and generate output data
     out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
     out_data = [v for v in gdata.values()]
 
@@ -152,7 +173,7 @@ def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr)
+    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr, output_type='shared')
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
     # Filter out symbols from stub libraries since they're already resolved and should not be exported in the shared library

@@ -9,7 +9,7 @@ def roundup(size, alignment):
 def pad(data, alignment):
     return data + b'\x00' * (roundup(len(data), alignment) - len(data))
 
-def allocate(objs, gsymtab, base_addr):
+def allocate(objs, gsymtab, base_addr, output_type):
     # start text segment at 0x1000 to leave some space for the header
     TEXT_START = base_addr
     VALID_SEGMENT_TYPES = {'RP', 'RWP', 'RW'}
@@ -34,11 +34,13 @@ def allocate(objs, gsymtab, base_addr):
                 bss_segments[lseg.name] = None
     gsegments = {
         **{name: Segment(name, 0, 0, 'RP') for name in text_segments},
+        '.lib': Segment('.lib', 0, 0, 'RP'),
         '.got': Segment('.got', 0, 0, 'RWP'),
         **{name: Segment(name, 0, 0, 'RWP') for name in data_segments},
         **{name: Segment(name, 0, 0, 'RW') for name in bss_segments}}
     gdata = {
         **{name: bytearray() for name in text_segments},
+        '.lib': bytearray(),
         '.got': bytearray(),
         **{name: bytearray() for name in data_segments}
     }
@@ -57,6 +59,18 @@ def allocate(objs, gsymtab, base_addr):
             if 'P' in lseg.code_letter:
                 gdata[lseg.name] += pad(o.data[data_index], WORD_ALIGNMENT)
                 data_index += 1
+
+    # Calculate the .lib segment size
+    shared_libraries = set(sym.obj.mod.library_name() for sym in gsymtab.values() if sym.obj.is_stub_library)
+    if len(shared_libraries) > 0 and output_type == 'executable':
+        # Allocate .lib segment for storing shared library names
+        contents = b'\x00'.join(lib.encode('utf-8') for lib in shared_libraries)
+        contents += b'\x00\x00' # Terminate the list with two null bytes
+        gdata['.lib'] = contents # Since it's the last segment in the text group, we don't need to pad it to word alignment
+        gsegments['.lib'].size = len(contents)
+    else:
+        gsegments.pop('.lib')
+        gdata.pop('.lib')
 
     # Calculate the start address of segments in textgroup
     text_group_start = TEXT_START
