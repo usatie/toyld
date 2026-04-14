@@ -23,24 +23,15 @@ This project implements a linker and librarian that process a simple text-based 
 | 7.1 | Ch. 7 | linker | RS4 relocation — PC-relative symbol reference |
 | 7.1 | Ch. 7 | linker | U2 relocation — upper 16-bit symbol address |
 | 7.1 | Ch. 7 | linker | L2 relocation — lower 16-bit symbol address |
-| 7.1 | Ch. 7 | linker | Combined all 6 relocation types, big-endian |
 | 7.2 | Ch. 7 | linker | Little-endian byte order (`--byteorder little`) |
-| 8.1 | Ch. 8 | linker | Symbol wrapping (`--wrap`) against object files |
-| 8.1 | Ch. 8 | linker | Symbol wrapping against directory-format libraries |
-| 8.1 | Ch. 8 | linker | Symbol wrapping against file-format libraries |
+| 8.1 | Ch. 8 | linker | Symbol wrapping (`--wrap`) against object files and libraries (directory- and file-format) |
 | 8.2 | Ch. 8 | symwrap | Standalone symbol wrapper program for object files |
 | 8.3 | Ch. 8 | linker | GP4 relocation — GOT pointer (external symbol via GOT) |
 | 8.3 | Ch. 8 | linker | GA4 relocation — GOT address (PC-relative distance to GOT) |
 | 8.3 | Ch. 8 | linker | GR4 relocation — GOT-relative local address |
 | 8.3 | Ch. 8 | linker | ER4 output — executable-relative entries from A4/AS4 inputs and GOT slots |
-| 9.1 | Ch. 9 | linker | Static shared library creation with directory-format stub (`--shared`) |
-| 9.1 | Ch. 9 | linker | Static shared library with cross-library dependency in directory-format stub |
-| 9.1 | Ch. 9 | linker | Static shared library creation with file-format stub (`--stub-format file`) |
-| 9.1 | Ch. 9 | linker | Static shared library using file-format input stub, producing file-format output stub |
-| 9.2 | Ch. 9 | linker | Link executable against directory-format stub; emits `.lib` and `_SHARED_LIBRARIES` |
-| 9.2 | Ch. 9 | linker | Link executable against file-format stub |
-| 9.2 | Ch. 9 | linker | Link executable against two stubs; `.lib` built from each stub's explicit dep list |
-| 9.2 | Ch. 9 | linker | Link executable against stub with one transitive dependency |
+| 9.1 | Ch. 9 | linker | Static shared library creation (`--shared`) with directory- and file-format stubs, including cross-library dependencies |
+| 9.2 | Ch. 9 | linker | Link executable against static shared library stubs (directory- and file-format) |
 
 ## Object File Format (`.lk`)
 
