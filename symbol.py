@@ -43,21 +43,23 @@ class GlobalSymbol:
 
 class Module:
     @staticmethod
-    def file_format(filename, offset, size, is_stub_library):
+    def file_format(filename, offset, size, is_stub_library, deps):
         mod = Module()
         mod.filename = filename
         mod.offset = offset
         mod.size = size
         mod.is_stub_library = is_stub_library
         mod.format = 'file'
+        mod.deps = deps
         return mod
     
     @staticmethod
-    def dir_format(filename, is_stub_library):
+    def dir_format(filename, is_stub_library, deps):
         mod = Module()
         mod.filename = filename
         mod.is_stub_library = is_stub_library
         mod.format = 'dir'
+        mod.deps = deps
         return mod
 
     def library_name(self):
@@ -76,12 +78,16 @@ def collect_symbols(library_dirs, library_files, is_stub_library=False):
     symtab = {}
     for lib_dir in library_dirs:
         entries = os.listdir(lib_dir)
+        deps = []
+        if is_stub_library:
+            with open(os.path.join(lib_dir, 'LIBRARY NAME'), 'r') as f:
+                deps = [line.strip() for line in f if line.strip()]
         for filename in sorted(entries):
             # 'LIBRARY NAME' is the special file in stub libraries
             if filename == 'LIBRARY NAME':
                 continue
             symbol_name = filename
-            symtab[symbol_name] = Module.dir_format(os.path.join(lib_dir, symbol_name), is_stub_library)
+            symtab[symbol_name] = Module.dir_format(os.path.join(lib_dir, symbol_name), is_stub_library, deps=deps)
 
     for file in library_files:
         with open(file, 'r') as f:
@@ -101,7 +107,7 @@ def collect_symbols(library_dirs, library_files, is_stub_library=False):
                     if sym in symtab:
                         print(f"Error: symbol '{sym}' is multiply defined in library files '{symtab[sym].filename}' and '{file}'", file=sys.stderr)
                         sys.exit(1)
-                    symtab[sym] = Module.file_format(file, mod_offset, mod_size, is_stub_library)
+                    symtab[sym] = Module.file_format(file, mod_offset, mod_size, is_stub_library, deps=deps)
     dprint(f"Collected {len(symtab)} symbols from libraries")
     dprint(f"Library symbol table: {symtab}")
     return symtab

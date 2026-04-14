@@ -61,10 +61,11 @@ def allocate(objs, gsymtab, base_addr, output_type):
                 data_index += 1
 
     # Calculate the .lib segment size
-    shared_libraries = set(sym.obj.mod.library_name() for sym in gsymtab.values() if sym.obj.is_stub_library)
-    if len(shared_libraries) > 0 and output_type == 'executable':
+    # Preserving the order of shared libraries, and removing duplicates
+    sso_dependencies = dict.fromkeys(lib for sym in gsymtab.values() if sym.obj.is_stub_library for lib in sym.obj.mod.deps)
+    if len(sso_dependencies) > 0 and output_type == 'executable':
         # Allocate .lib segment for storing shared library names
-        contents = b'\x00'.join(lib.encode('utf-8') for lib in shared_libraries)
+        contents = b'\x00'.join(lib.encode('utf-8') for lib in sso_dependencies.keys())
         contents += b'\x00\x00' # Terminate the list with two null bytes
         gdata['.lib'] = contents # Since it's the last segment in the text group, we don't need to pad it to word alignment
         gsegments['.lib'].size = len(contents)
