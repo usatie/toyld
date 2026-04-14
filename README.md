@@ -37,6 +37,10 @@ This project implements a linker and librarian that process a simple text-based 
 | 9.1 | Ch. 9 | linker | Static shared library with cross-library dependency in directory-format stub |
 | 9.1 | Ch. 9 | linker | Static shared library creation with file-format stub (`--stub-format file`) |
 | 9.1 | Ch. 9 | linker | Static shared library using file-format input stub, producing file-format output stub |
+| 9.2 | Ch. 9 | linker | Link executable against directory-format stub; emits `.lib` and `_SHARED_LIBRARIES` |
+| 9.2 | Ch. 9 | linker | Link executable against file-format stub |
+| 9.2 | Ch. 9 | linker | Link executable against two stubs; `.lib` built from each stub's explicit dep list |
+| 9.2 | Ch. 9 | linker | Link executable against stub with one transitive dependency |
 
 ## Object File Format (`.lk`)
 
@@ -121,16 +125,23 @@ The linker can produce a **static shared library** from a regular library input 
 
 See [docs/shared-libraries.md](docs/shared-libraries.md) for stub library format details.
 
+The linker can also **link an executable against stub libraries**. It resolves symbols from the stubs, patches relocations with their absolute addresses, and writes a `.lib` segment containing the null-separated names of all required shared libraries, read directly from each stub's dependency record and appended in the order that symbols from each library are first resolved. A `_SHARED_LIBRARIES` symbol points to the start of `.lib` so the startup routine can find it.
+
+```sh
+./linker.py main.lk stublib/libfoo.sso stublib/libbar.sso \
+    --byteorder big --output a.out.lk
+```
+
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test29)
+make           # Run all tests (test1–test33)
 make test1     # Run individual test
 ```
 
 ## Test Cases
 
-See [docs/test-cases.md](docs/test-cases.md) for full descriptions of all 29 test cases.
+See [docs/test-cases.md](docs/test-cases.md) for full descriptions of all 33 test cases.
 
 ## Reference
 

@@ -193,3 +193,36 @@ Same modules as Test 27, but `libio.sso` is a file-format input stub. Produces a
     --byteorder big --output build/lib/libprint.sso \
     --stub-format file --stub-output build/stublib/libprint.sso
 ```
+
+## Test 30 — Executable linking against directory-format stub, single library (Project 9.2)
+Links `main.lk` (defines `main`, references `add` via GP4 and `sub` via AS4) against the directory-format stub for `libmath.sso` (no dependencies). The linker resolves `add` and `sub` as absolute addresses, emits a `.lib` segment containing `libmath.sso\0\0` in the text group (RP), and defines `_SHARED_LIBRARIES` pointing to it. A `.got` entry for `add` (via GP4) is placed in the data group after the 4KB page boundary.
+
+```sh
+./linker.py tests/testcase30/main.lk tests/testcase30/libmath.sso \
+    --byteorder big --output build/a.out.lk
+```
+
+## Test 31 — Executable linking against file-format stub, single library (Project 9.2)
+Same as Test 30, but the stub is a single-file archive instead of a directory. The linker reads the `LIBRARY` header, finds the module at its stored offset, and resolves symbols identically. Expected output is identical to Test 30.
+
+```sh
+./linker.py tests/testcase31/main.lk tests/testcase31/libmath.sso \
+    --byteorder big --output build/a.out.lk
+```
+
+## Test 32 — Executable linking against two stubs, each with a transitive dependency (Project 9.2)
+Links `main.lk` (references `add` via GP4 and `printf` via AS4) against two directory-format stubs: `libmath.sso` (depends on `libbase.sso`) and `libprint.sso` (depends on `libio.sso`). The linker reads the explicitly listed names from each stub's dependency record and appends them to `.lib` in symbol resolution order: `add` (symbol 2 in `main.lk`) is resolved first → `libmath.sso`, `libbase.sso`; then `printf` (symbol 3) → `libprint.sso`, `libio.sso`, giving `libmath.sso\0libbase.sso\0libprint.sso\0libio.sso\0\0`. The `.got` holds the absolute address of `add`.
+
+```sh
+./linker.py tests/testcase32/main.lk \
+    tests/testcase32/libmath.sso tests/testcase32/libprint.sso \
+    --byteorder big --output build/a.out.lk
+```
+
+## Test 33 — Executable linking against a stub with one transitive dependency (Project 9.2)
+Links `main.lk` (references `printf` via GP4) against the directory-format stub for `libprint.sso`, which declares a dependency on `libio.sso`. The `.lib` segment contains `libprint.sso\0libio.sso\0\0`, taken directly from the stub's `LIBRARY NAME` file which already records both names. The `.got` holds the absolute address of `printf`.
+
+```sh
+./linker.py tests/testcase33/main.lk tests/testcase33/libprint.sso \
+    --byteorder big --output build/a.out.lk
+```

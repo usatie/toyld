@@ -42,6 +42,42 @@ LIBRARY <nmods> <diroff> <libname> [<dep1> <dep2> ...]
 
 `<libname>` is the name of the shared library this stub describes; subsequent fields are dependency library names. The rest of the format (module contents and directory) is identical to a regular file-format library, with one module per defined symbol group — in practice one module containing the data-trimmed shared library content, with all defined symbols listed in the directory entry.
 
+## Linking Executables Against Shared Libraries (Project 9.2)
+
+An executable is linked against stub libraries the same way a shared library is — the linker resolves symbols from the stubs and patches relocations with their absolute addresses. Two additional outputs are produced:
+
+### `.lib` Segment
+
+The linker creates a segment named `.lib` in the **text group** (`RP` — read-only, present in file) containing the names of all required shared libraries as null-terminated strings, with an extra null byte at the end:
+
+```
+libfoo.sso\0libbar.sso\0\0
+```
+
+The list is built by reading the dependency names already recorded in each stub (the `LIBRARY NAME` file for directory-format stubs, or the extra header fields for file-format stubs) and appending them in the order that symbols from each library are first resolved during linking. Each library name appears at most once; duplicates are skipped.
+
+### `_SHARED_LIBRARIES` Symbol
+
+The linker defines a symbol `_SHARED_LIBRARIES` with the absolute address of the start of `.lib` (seg_number = 0, type `D`). Startup code can use this symbol to locate the library list at runtime.
+
+### Segment Layout
+
+With `.lib` in the text group, the final segment order in the output executable is:
+
+```
+text group (RP):   .text  →  .lib
+                   ↓ 4KB page boundary
+data group (RWP):  .got   →  .data
+bss group  (RW):   .bss
+```
+
+### Example
+
+```sh
+./linker.py main.lk stublib/libmath.sso stublib/libprint.sso \
+    --byteorder big --output a.out.lk
+```
+
 ## Project Background
 
 See [proj-9.md](proj-9.md) for the original project specification from *Linkers and Loaders*.

@@ -765,7 +765,7 @@ test32:
 	# Linked at 0x1000 (big-endian):
 	#   .text 0x1000 12B: GP4→add (GOT offset 0→00000000), AS4→printf (0x8000→00008000)
 	#   .lib  0x100c 0x30B (RP, text group): "libmath.sso\0libbase.sso\0libprint.sso\0libio.sso\0\0"
-	#     (depth-first traversal of all 4 libs: 2 direct + 2 transitive)
+	#     (names from each stub's LIBRARY NAME file, in symbol resolution order: add first, printf second)
 	#   .got 0x2000 4B: add=0x5000 → 00005000
 	#   .data 0x2004 0B; .bss 0x2004 0B
 	#   _SHARED_LIBRARIES = 0x100c; ER4: .got[0] (seg3), text[8] (seg1)
