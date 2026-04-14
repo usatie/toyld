@@ -1,0 +1,7 @@
+LINK
+1 2 1
+.text 0 8 RP
+main 0 1 D
+printf 0 0 U
+4 1 2 GP4
+deadbeef00000000

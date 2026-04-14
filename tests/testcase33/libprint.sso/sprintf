@@ -1,0 +1,7 @@
+LINK
+3 2 0
+.text 8000 c R
+.data 9000 0 RW
+.bss 9000 0 RW
+printf 8000 0 D
+sprintf 8008 0 D

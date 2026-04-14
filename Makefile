@@ -14,8 +14,8 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@passed=0; total=29; \
-	for t in $$(seq 1 29); do \
+	@passed=0; total=33; \
+	for t in $$(seq 1 33); do \
 		$(MAKE) --no-print-directory -s test$$t >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
@@ -34,8 +34,8 @@ all:
 .PHONY: ci
 ci:
 	# Run all tests verbosely; print output for each; exit non-zero if any failed
-	@passed=0; failed=0; total=29; \
-	for t in $$(seq 1 29); do \
+	@passed=0; failed=0; total=33; \
+	for t in $$(seq 1 33); do \
 		printf "=== Test $$t ===\n"; \
 		$(MAKE) --no-print-directory test$$t 2>&1; \
 		if [ $$? -eq 0 ]; then \
@@ -723,6 +723,74 @@ test29:
 		&& diff -U 1 $(BUILD_DIR)/lib/libprint.sso $(TEST_DIR)/cmp/lib/libprint.sso \
 		&& diff -U 1 $(BUILD_DIR)/stublib/libprint.sso $(TEST_DIR)/cmp/stublib/libprint.sso \
 		&& printf "$(GREEN)Test 29 passed$(RESET)\n" || { printf "$(RED)Test 29 failed$(RESET)\n"; false; }
+
+test30: TEST_DIR=tests/testcase30
+test30:
+	# Test 30 for project 9.2: Link executable against directory-format stub (single library, no deps)
+	#
+	# main.lk: defines main (.text 12B), imports add (GP4@4) and sub (AS4@8)
+	# libmath.sso: directory-format stub; no deps; add=0x5000, sub=0x5004, mul=0x5008
+	#
+	# Linked at 0x1000 (big-endian):
+	#   .text 0x1000 12B: GP4→add (GOT offset 0→00000000), AS4→sub (0x5004→00005004)
+	#   .lib  0x100c 0xd B (RP, text group): "libmath.sso\0\0"
+	#   .got  0x2000 4B: add=0x5000 → 00005000
+	#   .data 0x2004 0B; .bss 0x2004 0B
+	#   _SHARED_LIBRARIES = 0x100c; ER4: .got[0] (seg3), text[8] (seg1)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libmath.sso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 30 passed$(RESET)\n" || { printf "$(RED)Test 30 failed$(RESET)\n"; false; }
+
+test31: TEST_DIR=tests/testcase31
+test31:
+	# Test 31 for project 9.2: Link executable against file-format stub (single library, no deps)
+	#
+	# Same as test 30 but libmath.sso is a single-file archive (LIBRARY header + one module).
+	# libmath.sso: LIBRARY 1 79 libmath.sso; module at 0x19 (96 bytes); add, sub, mul in dir
+	# Expected output is identical to test 30 (GP4→add, AS4→sub, .lib before .got).
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libmath.sso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 31 passed$(RESET)\n" || { printf "$(RED)Test 31 failed$(RESET)\n"; false; }
+
+test32: TEST_DIR=tests/testcase32
+test32:
+	# Test 32 for project 9.2: Link executable against two stubs each with a cross-library dep
+	#
+	# main.lk: defines main (.text 12B), imports add (GP4@4) and printf (AS4@8)
+	# libmath.sso (dir stub): add=0x5000, sub=0x5004, mul=0x5008; depends on libbase.sso
+	# libprint.sso (dir stub): printf=0x8000, sprintf=0x8008; depends on libio.sso
+	#
+	# Linked at 0x1000 (big-endian):
+	#   .text 0x1000 12B: GP4→add (GOT offset 0→00000000), AS4→printf (0x8000→00008000)
+	#   .lib  0x100c 0x30B (RP, text group): "libmath.sso\0libbase.sso\0libprint.sso\0libio.sso\0\0"
+	#     (depth-first traversal of all 4 libs: 2 direct + 2 transitive)
+	#   .got 0x2000 4B: add=0x5000 → 00005000
+	#   .data 0x2004 0B; .bss 0x2004 0B
+	#   _SHARED_LIBRARIES = 0x100c; ER4: .got[0] (seg3), text[8] (seg1)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libmath.sso $(TEST_DIR)/libprint.sso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 32 passed$(RESET)\n" || { printf "$(RED)Test 32 failed$(RESET)\n"; false; }
+
+test33: TEST_DIR=tests/testcase33
+test33:
+	# Test 33 for project 9.2: Link executable against stub that has a transitive dep
+	#
+	# main.lk: defines main (.text 8B), imports printf (GP4@4)
+	# libprint.sso (dir stub): printf=0x8000, sprintf=0x8008; depends on libio.sso
+	#
+	# Linked at 0x1000 (big-endian):
+	#   .text 0x1000 8B: GP4→printf (GOT offset 0→00000000)
+	#   .lib  0x1008 0x18B (RP, text group): "libprint.sso\0libio.sso\0\0"
+	#   .got 0x2000 4B: printf=0x8000 → 00008000
+	#   .data 0x2004 0B; .bss 0x2004 0B
+	#   _SHARED_LIBRARIES = 0x1008; ER4: .got[0] (seg3)
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libprint.sso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 33 passed$(RESET)\n" || { printf "$(RED)Test 33 failed$(RESET)\n"; false; }
 
 .PHONY: clean
 clean:
