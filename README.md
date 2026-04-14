@@ -1,6 +1,6 @@
 # toyld — Toy Linker & Librarian
 
-A toy linker and librarian built in Python, implementing projects from *Linkers and Loaders* by John R. Levine.
+A toy linker and librarian built in Python, implementing projects from [*Linkers and Loaders*](https://linker.iecc.com/) by John R. Levine.
 
 ## Overview
 
