@@ -32,6 +32,8 @@ This project implements a linker and librarian that process a simple text-based 
 | 8.3 | Ch. 8 | linker | ER4 output — executable-relative entries from A4/AS4 inputs and GOT slots |
 | 9.1 | Ch. 9 | linker | Static shared library creation (`--shared`) with directory- and file-format stubs, including cross-library dependencies |
 | 9.2 | Ch. 9 | linker | Link executable against static shared library stubs (directory- and file-format) |
+| 10.1 | Ch. 10 | linker | Dynamic shared libraries and executables that use them, marked by `LINKLIB`/`LINK` headers listing dependencies |
+| 10.2 | Ch. 10 | binder | Run-time binder: load an executable and its shared libraries, relocate to non-overlapping addresses, and resolve all references |
 
 ## Object File Format (`.lk`)
 
