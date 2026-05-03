@@ -1,0 +1,11 @@
+LINKLIB libsys.dso
+3 4 0
+.text 1000 8 RP
+.data 2000 8 RWP
+.bss 2008 0 RW
+write 1000 1 D
+log 1004 1 D
+stdout 2000 2 D
+errno 2004 2 D
+0102030405060708
+deadbeefcafebabe

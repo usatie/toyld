@@ -808,6 +808,26 @@ test34:
 		&& diff -U 1 $(BUILD_DIR)/libmath.dso $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 34 passed$(RESET)\n" || { printf "$(RED)Test 34 failed$(RESET)\n"; false; }
 
+test35: TEST_DIR=tests/testcase35
+test35:
+	# Test 35 for project 10.1: Producer — dynamic shared library with imports + GOT + .data import + dep with own LINKLIB
+	#
+	# printf.lk: defines printf (.text 16B), imports write (AS4@4), log (RS4@8), stdout (GP4@c), errno (AS4 in .data[0])
+	# libio.dso: fixture defining write/log/stdout/errno; has own header "LINKLIB libsys.dso" (libsys.dso NOT present)
+	#
+	# Linked with --shared --dynamic (default base 0x1000), big-endian:
+	#   .text 0x1000 0x10B: GP4→stdout patched to GOT-relative offset 0 → no output reloc at .text[c]
+	#   .got  0x2000 4B: 1 slot for stdout (binder fills) → AS4 at .got[0]
+	#   .data 0x2004 4B: errno_ptr slot (binder fills) → AS4 at .data[0]
+	#   .bss  0x2008 0B
+	#
+	# Output libprint.dso: header "LINKLIB libio.dso" (libsys.dso NOT propagated),
+	# 5 symbols (printf D, write/log/stdout/errno U), 4 relocs (AS4×3 + RS4×1).
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/printf.lk $(TEST_DIR)/libio.dso --shared --dynamic --byteorder big --output $(BUILD_DIR)/libprint.dso \
+		&& diff -U 1 $(BUILD_DIR)/libprint.dso $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 35 passed$(RESET)\n" || { printf "$(RED)Test 35 failed$(RESET)\n"; false; }
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
