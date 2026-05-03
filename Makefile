@@ -828,6 +828,24 @@ test35:
 		&& diff -U 1 $(BUILD_DIR)/libprint.dso $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 35 passed$(RESET)\n" || { printf "$(RED)Test 35 failed$(RESET)\n"; false; }
 
+test36: TEST_DIR=tests/testcase36
+test36:
+	# Test 36 for project 10.1: Consumer — simplest exe using one dynamic shared library
+	#
+	# main.lk: defines main (.text 8B), imports add via AS4@4 from libmath.dso
+	# libmath.dso: fixture (same as test 34's expected output) defining add/sub/mul, no own deps
+	#
+	# Linked at default base 0x1000, big-endian:
+	#   .text 0x1000 8B: AS4→add preserved (binder fills .text[4..7])
+	#   .data 0x2000 0B; .bss 0x2000 0B
+	#
+	# Output a.out.lk: header "LINK libmath.dso", 2 symbols (main D, add U), 1 reloc (AS4).
+	# No .lib segment, no _SHARED_LIBRARIES symbol (Project 10.1 drops both).
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libmath.dso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 36 passed$(RESET)\n" || { printf "$(RED)Test 36 failed$(RESET)\n"; false; }
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
