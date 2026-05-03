@@ -128,13 +128,13 @@ The linker can also **link an executable against stub libraries**. It resolves s
 ## Running Tests
 
 ```sh
-make           # Run all tests (test1–test33)
+make           # Run all tests (test1–test33; tests 34–37 added but require Project 10.1 implementation to pass)
 make test1     # Run individual test
 ```
 
 ## Test Cases
 
-See [docs/test-cases.md](docs/test-cases.md) for full descriptions of all 33 test cases.
+See [docs/test-cases.md](docs/test-cases.md) for full descriptions of all 37 test cases.
 
 ## Reference
 

@@ -226,3 +226,34 @@ Links `main.lk` (references `printf` via GP4) against the directory-format stub 
 ./linker.py tests/testcase33/main.lk tests/testcase33/libprint.sso \
     --byteorder big --output build/a.out.lk
 ```
+
+## Test 34 — Simplest dynamic shared library (Project 10.1)
+Creates a dynamic shared library from `add.lk` (defines `add`, `sub`) and `mul.lk` (defines `mul`). Uses `--shared --dynamic` to produce `libmath.dso` with header `LINKLIB` (no deps), three defined symbols, and no relocations. The smoke test for the new `LINKLIB` header and `.dso` output format.
+
+```sh
+./linker.py tests/testcase34/{add,mul}.lk --shared --dynamic --output build/libmath.dso
+```
+
+## Test 35 — Producer with imports, GOT, and dep that has its own LINKLIB (Project 10.1)
+Creates `libprint.dso` from `printf.lk` (defines `printf`; imports `write`/`log`/`stdout`/`errno`) and the fixture `libio.dso` (which itself declares `LINKLIB libsys.dso`). Exercises every import-relocation path — `AS4` in `.text`, `RS4` in `.text`, `GP4` via the GOT, and `AS4` in `.data` — and verifies that `libio.dso`'s own `LINKLIB` is read but not propagated to the output.
+
+```sh
+./linker.py tests/testcase35/printf.lk tests/testcase35/libio.dso \
+    --shared --dynamic --byteorder big --output build/libprint.dso
+```
+
+## Test 36 — Simplest exe linking against a dynamic shared library (Project 10.1)
+Links `main.lk` (defines `main`, imports `add` via AS4) against the fixture `libmath.dso` (no own deps). Output exe has header `LINK libmath.dso`, two symbols (`main` defined, `add` undefined), and the AS4 to `add` preserved for runtime resolution. Drops the `.lib` segment and `_SHARED_LIBRARIES` symbol used by 9.2.
+
+```sh
+./linker.py tests/testcase36/main.lk tests/testcase36/libmath.dso \
+    --byteorder big --output build/a.out.lk
+```
+
+## Test 37 — Exe linking against two dso's, one with its own LINKLIB (Project 10.1)
+Mirror of Test 35 on the consumer side. `main.lk` references `add` (AS4 from libmath), `printf` (RS4 from libprint), `puts` (GP4 via GOT, from libprint), and `errno` (AS4 in `.data`, from libprint). Verifies the multi-element `LINK` header, all import-relocation paths, and the don't-propagate rule (`libprint.dso`'s own `LINKLIB libio.dso` is NOT included in main's `LINK` header).
+
+```sh
+./linker.py tests/testcase37/main.lk tests/testcase37/libmath.dso tests/testcase37/libprint.dso \
+    --byteorder big --output build/a.out.lk
+```
