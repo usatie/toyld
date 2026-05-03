@@ -792,6 +792,22 @@ test33:
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 33 passed$(RESET)\n" || { printf "$(RED)Test 33 failed$(RESET)\n"; false; }
 
+test34: TEST_DIR=tests/testcase34
+test34:
+	# Test 34 for project 10.1: Simplest dynamic shared library (no deps, no imports)
+	#
+	# add.lk: defines add, sub (.text 8B); mul.lk: defines mul (.text 4B). No relocations.
+	#
+	# Linked with --shared --dynamic at default base 0x1000:
+	#   .text 0x1000 0xc B: add=0x1000, sub=0x1004, mul=0x1008
+	#   .data 0x2000 0B; .bss 0x2000 0B
+	#
+	# Output libmath.dso: header "LINKLIB" (no deps), 3 defined symbols, 0 relocations.
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/add.lk $(TEST_DIR)/mul.lk --shared --dynamic --output $(BUILD_DIR)/libmath.dso \
+		&& diff -U 1 $(BUILD_DIR)/libmath.dso $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 34 passed$(RESET)\n" || { printf "$(RED)Test 34 failed$(RESET)\n"; false; }
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)

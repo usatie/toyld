@@ -1,0 +1,5 @@
+LINK
+1 1 0
+.text 0 4 RP
+mul 0 1 D
+cafebabe
