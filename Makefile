@@ -846,6 +846,27 @@ test36:
 		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 36 passed$(RESET)\n" || { printf "$(RED)Test 36 failed$(RESET)\n"; false; }
 
+test37: TEST_DIR=tests/testcase37
+test37:
+	# Test 37 for project 10.1: Consumer — exe with two deps; one dep has its own LINKLIB
+	#
+	# main.lk: defines main (.text 16B + .data 4B), imports add (AS4@4), printf (RS4@8), puts (GP4@c), errno (AS4 in .data[0])
+	# libmath.dso: fixture (same as test 34 cmp) — defines add/sub/mul, no own deps
+	# libprint.dso: fixture defining printf/puts/errno; has own header "LINKLIB libio.dso" (libio.dso NOT present)
+	#
+	# Linked at default base 0x1000, big-endian:
+	#   .text 0x1000 0x10B: GP4→puts patched to GOT offset 0 (no output reloc at .text[c])
+	#   .got  0x2000 4B: 1 slot for puts → AS4 at .got[0]
+	#   .data 0x2004 4B: errno_ptr → AS4 at .data[0]
+	#   .bss  0x2008 0B
+	#
+	# Output a.out.lk: header "LINK libmath.dso libprint.dso" (libio.dso NOT propagated),
+	# 5 symbols (main D, others U), 4 relocs (AS4×3 + RS4×1).
+	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
+		&& $(LINK_CMD) $(TEST_DIR)/main.lk $(TEST_DIR)/libmath.dso $(TEST_DIR)/libprint.dso --byteorder big --output $(OUT) \
+		&& diff -U 1 $(OUT) $(TEST_DIR)/cmp \
+		&& printf "$(GREEN)Test 37 passed$(RESET)\n" || { printf "$(RED)Test 37 failed$(RESET)\n"; false; }
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)

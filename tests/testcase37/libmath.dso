@@ -1,0 +1,9 @@
+LINKLIB
+3 3 0
+.text 1000 c RP
+.data 2000 0 RWP
+.bss 2000 0 RW
+add 1000 1 D
+sub 1004 1 D
+mul 1008 1 D
+deadbeef11223344cafebabe

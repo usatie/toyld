@@ -1,0 +1,10 @@
+LINKLIB libio.dso
+3 3 0
+.text 1000 8 RP
+.data 2000 4 RWP
+.bss 2004 0 RW
+printf 1000 1 D
+puts 1004 1 D
+errno 2000 2 D
+deadbeefcafebabe
+abcd1234

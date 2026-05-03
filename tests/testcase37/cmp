@@ -1,0 +1,18 @@
+LINK libmath.dso libprint.dso
+4 5 4
+.text 1000 10 RP
+.got 2000 4 RWP
+.data 2004 4 RWP
+.bss 2008 0 RW
+main 1000 1 D
+add 0 0 U
+printf 0 0 U
+puts 0 0 U
+errno 0 0 U
+4 1 2 AS4
+8 1 3 RS4
+0 2 4 AS4
+0 3 5 AS4
+deadbeef000000000000000000000000
+00000000
+00000000
