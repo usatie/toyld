@@ -133,7 +133,7 @@ def link_executable(args):
         ),
     )
 
-def collect_objecs(library_dirs, library_files):
+def collect_objects(library_dirs, library_files):
     objs = []
     for lib_dir in library_dirs:
         distinct_object_files = set()
@@ -184,7 +184,7 @@ def link_shared_library(args):
         else:
             print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
             sys.exit(1)
-    objs = collect_objecs(library_dirs, library_files)
+    objs = collect_objects(library_dirs, library_files)
 
     # Link collected objects
     lib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
