@@ -26,13 +26,15 @@ def parse_args():
     parser.add_argument('--byteorder', choices=['big', 'little'], default='little', help='Specify byte order for output file (default: little)')
     parser.add_argument('--wrap', '-w', action='append', help='Use a wrapper function for SYMBOL.', metavar='SYMBOL', default=[])
     parser.add_argument('--shared', action='store_true', help='Produce a shared library instead of an executable (default: false)', default=False)
+    parser.add_argument('--dynamic', action='store_true', help='Produce a dynamic shared library instead of a static shared library (default: false)', default=False)
     parser.add_argument('--base-addr', type=lambda x: int(x, 16), help='Specify base address for output segments (default: 0x1000)', default=0x1000)
     parser.add_argument('--stub-format', choices=['directory', 'file'], default='directory', help='Specify format for stub libraries (default: directory)')
     parser.add_argument('--stub-output', help='Specify output file name for stub library')
     args = parser.parse_args()
-    if args.shared and not args.stub_output:
+    is_static_shared = args.shared and not args.dynamic
+    if is_static_shared and not args.stub_output:
         parser.error("--shared requires --stub-output to be specified")
-    if args.shared and os.path.basename(args.stub_output) != os.path.basename(args.output):
+    if is_static_shared and os.path.basename(args.stub_output) != os.path.basename(args.output):
         parser.error(f"--stub-output file name must be the same as output file name when --shared is specified. Expected '{os.path.basename(args.output)}', got '{os.path.basename(args.stub_output)}'")
     return args
 
@@ -141,13 +143,13 @@ def collect_objecs(library_dirs, library_files):
                 objs.append(lib_obj)
     return objs
 
-def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
+def link_shared_library(args):
     # Input files shall be only libraries
     library_dirs = []
     library_files = []
     stub_library_dirs = []
     stub_library_files = []
-    for f in input_files:
+    for f in args.input_files:
         if os.path.isdir(f):
             if is_stub_library_directory(f):
                 stub_library_dirs.append(f)
@@ -169,22 +171,28 @@ def link_shared_library(input_files, byteorder, wrap_symbols, base_addr):
     lib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
 
     # Resolve symbol names
-    symbol.apply_wraps(objs, wrap_symbols)
-    gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
+    symbol.apply_wraps(objs, args.wrap)
+    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr, output_type='shared')
+    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='shared')
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
     # Filter out symbols from stub libraries since they're already resolved and should not be exported in the shared library
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
     out_data = [v for v in gdata.values()]
 
-    return out_segments, out_symbols, out_relocations, out_data, stub_library_dirs + stub_library_files
+    write_stub_library(args.stub_output, (out_segments, out_symbols, out_relocations, out_data, stub_library_dirs + stub_library_files), args.stub_format)
+    args.skip_relocations = True # For shared library, we can't have relocations
+    write_output(
+        args.output,
+        (out_segments, out_symbols, out_relocations, out_data),
+        WriteOptions(skip_relocations=True), # For shared library, we can't have relocations
+    )
 
 class WriteOptions:
-    def __init__(self, skip_symbols, skip_relocations, skip_data):
+    def __init__(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         self.skip_symbols = skip_symbols
         self.skip_relocations = skip_relocations
         self.skip_data = skip_data
@@ -314,13 +322,17 @@ def write_stub_library_directory(output_dir, link_results):
     # Delete the output file (the hardlink will still exist in the output directory)
     os.remove(temp_file)
 
+def link_dynamic_shared_library(args):
+    print("Dynamic shared library linking is not implemented yet", file=sys.stderr)
+    exit(1)
+
 def main():
     args = parse_args()
-    if args.shared:
-        results = link_shared_library(args.input_files, args.byteorder, args.wrap, args.base_addr)
-        write_stub_library(args.stub_output, results, args.stub_format)
-        results = results[:4]
-        args.skip_relocations = True # For shared library, we can't have relocations
+    if args.shared and args.dynamic:
+        link_dynamic_shared_library(args)
+    elif args.shared:
+        link_shared_library(args)
+        return
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])

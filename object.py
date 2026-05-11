@@ -16,11 +16,15 @@ class Object:
         self.data = data
         self.is_stub_library = is_stub_library
         self.mod = None  # this will be used to store the Module object that this Object belongs to when we parse the input files into Modules and Objects
+        self.is_dynamic = False
 
     def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         contents = b''
         # Magic number
-        contents += b'LINK\n'
+        if self.is_dynamic:
+            contents += b'LINKLIB\n'
+        else:
+            contents += b'LINK\n'
         # Header
         num_segments = len(self.segments)
         num_symbols = 0 if skip_symbols else len(self.symbols)
