@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 
-from object import Segment
+from toyld.object import Segment
 
 def roundup(size, alignment):
     return (size + alignment - 1) // alignment * alignment

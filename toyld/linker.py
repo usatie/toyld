@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 
-from object import (
+from toyld.object import (
     Object, 
     Segment, 
     Symbol, 
@@ -15,9 +15,9 @@ from object import (
     parse_module
 )
 
-import relocation
-import storage
-import symbol
+import toyld.relocation as relocation
+import toyld.storage as storage
+import toyld.symbol as symbol
 
 
 def parse_args():

@@ -5,8 +5,8 @@ import os
 import sys
 
 
-from object import parse_objects
-from symbol import apply_wraps
+from toyld.object import parse_objects
+from toyld.symbol import apply_wraps
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Simple object symbol wrapper that redirects all references to wrapped symbols, and renames the original symbols with a prefix.')
