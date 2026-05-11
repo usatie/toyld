@@ -5,7 +5,7 @@ import os
 import sys
 
 
-from toyld.object import parse_objects
+from toyld.objfile import parse_objects
 from toyld.symbol import apply_wraps
 
 def parse_args():

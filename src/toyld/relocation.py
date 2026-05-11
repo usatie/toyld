@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 
-from toyld.object import Relocation
+from toyld.objfile import Relocation
 
 @dataclass
 class RelocationContext:

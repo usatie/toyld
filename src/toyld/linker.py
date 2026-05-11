@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 
-from toyld.object import (
+from toyld.objfile import (
     Object, 
     Segment, 
     Symbol, 

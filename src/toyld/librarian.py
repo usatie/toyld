@@ -5,7 +5,7 @@ import os
 import sys
 
 
-from toyld.object import parse_objects
+from toyld.objfile import parse_objects
 
 def create_directory_library(objs, output_dir):
     # Create output directory

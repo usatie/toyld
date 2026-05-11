@@ -1,7 +1,7 @@
 import os
 import sys
 
-from toyld.object import Symbol, parse_object, parse_module
+from toyld.objfile import Symbol, parse_object, parse_module
 
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
