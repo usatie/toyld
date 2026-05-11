@@ -2,12 +2,22 @@
 
 import argparse
 import os
+from pathlib import Path
 import sys
 
-from object import Object, Segment, Symbol, Relocation, parse_objects, parse_object, parse_module
+from object import (
+    Object, 
+    Segment, 
+    Symbol, 
+    Relocation, 
+    parse_objects, 
+    parse_object, 
+    parse_module
+)
+
+import relocation
 import storage
 import symbol
-import relocation
 
 
 def parse_args():
@@ -335,16 +345,21 @@ def link_dynamic_shared_library(args):
     print("Dynamic shared library linking is not implemented yet", file=sys.stderr)
     exit(1)
 
+def copy_input_to_output(args):
+    obj = parse_object(args.input_files[0])
+    Path(args.output).write_bytes(obj.serialize())
+
 def main():
     args = parse_args()
     if args.shared and args.dynamic:
+        # Link Dynamic Shared Library
         link_dynamic_shared_library(args)
     elif args.shared:
+        # Link Static Shared Library (with stub library)
         link_shared_library(args)
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
-        obj = parse_object(args.input_files[0])
-        write_output(args.output, (obj.segments, obj.symbols, obj.relocations, obj.data), WriteOptions())
+        copy_input_to_output(args)
     else:
         # Multiple input files, need to link them together
         link_executable(args)
