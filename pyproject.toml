@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toyld"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[project.scripts]
+toyld-linker = "toyld.linker:main"
+toyld-librarian = "toyld.librarian:main"
+toyld-symwrap = "toyld.symwrap:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}

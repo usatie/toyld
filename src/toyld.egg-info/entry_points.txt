@@ -1,0 +1,4 @@
+[console_scripts]
+toyld-librarian = toyld.librarian:main
+toyld-linker = toyld.linker:main
+toyld-symwrap = toyld.symwrap:main

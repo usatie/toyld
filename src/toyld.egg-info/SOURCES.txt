@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/toyld/__init__.py
+src/toyld/librarian.py
+src/toyld/linker.py
+src/toyld/object.py
+src/toyld/relocation.py
+src/toyld/storage.py
+src/toyld/symbol.py
+src/toyld/symwrap.py
+src/toyld.egg-info/PKG-INFO
+src/toyld.egg-info/SOURCES.txt
+src/toyld.egg-info/dependency_links.txt
+src/toyld.egg-info/entry_points.txt
+src/toyld.egg-info/top_level.txt

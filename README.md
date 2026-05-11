@@ -2,6 +2,13 @@
 
 A toy linker and librarian built in Python, implementing projects from [*Linkers and Loaders*](https://linker.iecc.com/) by John R. Levine.
 
+## Setup
+```sh
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+```
+
 ## Overview
 
 This project implements a linker and librarian that process a simple text-based object file format (`.lk`) defined in Chapter 3 of the book. Both tools are built incrementally across chapters:
@@ -44,7 +51,7 @@ A text-based format; all numbers are hexadecimal, lines starting with `#` are co
 ### Linker
 
 ```sh
-./linker.py <input_files...> [options]
+toyld-linker <input_files...> [options]
 ```
 
 **Options:**
@@ -67,7 +74,7 @@ A text-based format; all numbers are hexadecimal, lines starting with `#` are co
 ### Symbol Wrapper
 
 ```sh
-./symwrap.py <input_files...> [--wrap SYM] [-o <output_dir>]
+toyld-symwrap <input_files...> [--wrap SYM] [-o <output_dir>]
 ```
 
 Applies `--wrap` semantics to object files without linking them. Each input file is rewritten and written to the output directory with a `wrapped_` prefix.
@@ -86,7 +93,7 @@ For each wrapped symbol `SYM`:
 ### Librarian
 
 ```sh
-./librarian.py <input_files...> [--output <output_dir>] [--format <format>]
+toyld-librarian <input_files...> [--output <output_dir>] [--format <format>]
 ```
 
 **Options:**
@@ -110,8 +117,8 @@ See [docs/formats.md](docs/formats.md) for directory and file format details.
 The linker can produce a **static shared library** from a regular library input using `--shared`. A shared library is a fully linked object file (all symbols resolved, no outstanding relocations) allocated at a fixed base address. Its extension is `.sso` (shared static object).
 
 ```sh
-./librarian.py --output libfoo.pds foo.lk bar.lk
-./linker.py libfoo.pds --shared --base-addr 0x5000 \
+toyld-librarian --output libfoo.pds foo.lk bar.lk
+toyld-linker libfoo.pds --shared --base-addr 0x5000 \
     --output lib/libfoo.sso \
     --stub-format directory --stub-output stublib/libfoo.sso
 ```
@@ -121,7 +128,7 @@ See [docs/shared-libraries.md](docs/shared-libraries.md) for stub library format
 The linker can also **link an executable against stub libraries**. It resolves symbols from the stubs, patches relocations with their absolute addresses, and writes a `.lib` segment containing the null-separated names of all required shared libraries, read directly from each stub's dependency record and appended in the order that symbols from each library are first resolved. A `_SHARED_LIBRARIES` symbol points to the start of `.lib` so the startup routine can find it.
 
 ```sh
-./linker.py main.lk stublib/libfoo.sso stublib/libbar.sso \
+toyld-linker main.lk stublib/libfoo.sso stublib/libbar.sso \
     --byteorder big --output a.out.lk
 ```
 
