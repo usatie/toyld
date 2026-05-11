@@ -61,14 +61,14 @@ def is_stub_library_directory(dirname):
     # If "LIBRARY NAME" file exists, it's a stub library
     return os.path.isfile(os.path.join(dirname, 'LIBRARY NAME'))
 
-def link_objects(input_files, byteorder, wrap_symbols, base_addr):
+def link_executable(args):
     # Input files may contain libraries, so we need to separately treat them
     library_dirs = []
     library_files = []
     stub_library_dirs = []
     stub_library_files = []
     object_files = []
-    for f in input_files:
+    for f in args.input_files:
         if os.path.isdir(f):
             if is_stub_library_directory(f):
                 stub_library_dirs.append(f)
@@ -92,11 +92,11 @@ def link_objects(input_files, byteorder, wrap_symbols, base_addr):
     lib_symtab.update(stublib_symtab)
 
     # Resolve symbol names
-    symbol.apply_wraps(objs, wrap_symbols)
-    gsymtab = symbol.resolve_names(objs, lib_symtab, wrap_symbols)
+    symbol.apply_wraps(objs, args.wrap)
+    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, base_addr, output_type='executable')
+    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='executable')
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
 
@@ -109,10 +109,19 @@ def link_objects(input_files, byteorder, wrap_symbols, base_addr):
         out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
 
     # Relocate and generate output data
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, byteorder, out_segments)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
     out_data = [v for v in gdata.values()]
 
-    return out_segments, out_symbols, out_relocations, out_data
+    # Write to file
+    write_output(
+        args.output,
+        (out_segments, out_symbols, out_relocations, out_data),
+        WriteOptions(
+            skip_symbols=args.skip_symbols,
+            skip_relocations=args.skip_relocations,
+            skip_data=args.skip_data,
+        ),
+    )
 
 def collect_objecs(library_dirs, library_files):
     objs = []
@@ -332,23 +341,13 @@ def main():
         link_dynamic_shared_library(args)
     elif args.shared:
         link_shared_library(args)
-        return
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         obj = parse_object(args.input_files[0])
-        results = (obj.segments, obj.symbols, obj.relocations, obj.data)
+        write_output(args.output, (obj.segments, obj.symbols, obj.relocations, obj.data), WriteOptions())
     else:
         # Multiple input files, need to link them together
-        results = link_objects(args.input_files, args.byteorder, args.wrap, args.base_addr)
-    write_output(
-        args.output,
-        results,
-        WriteOptions(
-            skip_symbols=args.skip_symbols,
-            skip_relocations=args.skip_relocations,
-            skip_data=args.skip_data,
-        ),
-    )
+        link_executable(args)
 
 if __name__ == '__main__':
     main()
