@@ -46,7 +46,7 @@ bar 20 2 U
 
 **Symbol types:** `D` (defined), `U` (undefined/external). An undefined symbol with a nonzero value is a common block of that size.
 
-**Segment numbers** in symbol and relocation entries are 1-based.
+**Segment numbers** in symbol and relocation entries are 1-based. (0 for absolute symbols or undefined symbols.) For when a defined symbol uses `seg = 0` (absolute) versus `seg ≥ 1` (segment-relative) in linker outputs, see `symbol-segments.md`.
 
 **Relocation types:** `A4` (Absolute [Segment] reference), `R4` (Relative [Segment] reference), `AS4` (Absolute Symbol reference), `RS4` (Relative Symbol reference), `U2` (Upper half reference), `L2` (Lower half reference), `GA4` (distance to GOT base), `GP4` (GOT pointer for external symbol), `GR4` (GOT-relative local address), `ER4` (executable-relative, output-only). See `relocation.md` and `got.md` for details.
 
