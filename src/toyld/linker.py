@@ -71,6 +71,12 @@ def is_stub_library_directory(dirname):
     # If "LIBRARY NAME" file exists, it's a stub library
     return os.path.isfile(os.path.join(dirname, 'LIBRARY NAME'))
 
+def is_dynamic_shared_library_file(filename):
+    with open(filename, 'rb') as infile:
+        magic = infile.read(7)
+        print(f"{filename}: magic={magic}", file=sys.stderr)
+        return magic == b'LINKLIB' and infile.read(1) in (b' ', b'\n')
+
 def link_executable(args):
     # Input files may contain libraries, so we need to separately treat them
     library_dirs = []
@@ -347,6 +353,7 @@ def link_dynamic_shared_library(args):
     library_files = []
     stub_library_dirs = []
     stub_library_files = []
+    dynamic_library_files = []
     object_files = []
     for f in args.input_files:
         if os.path.isdir(f):
@@ -358,6 +365,8 @@ def link_dynamic_shared_library(args):
             library_files.append(f)
         elif is_stub_library_file(f):
             stub_library_files.append(f)
+        elif is_dynamic_shared_library_file(f):
+            dynamic_library_files.append(f)
         elif is_object_file(f):
             object_files.append(f)
         else:
@@ -366,10 +375,16 @@ def link_dynamic_shared_library(args):
     objs = parse_objects(object_files)
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
     stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
+    dynlib_symtab = symbol.collect_dynamic_symbols(dynamic_library_files)
+    print(f"Dynamic library symbols: {dynlib_symtab}", file=sys.stderr)
     if lib_symtab.keys() & stublib_symtab.keys():
         print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
         sys.exit(1)
     lib_symtab.update(stublib_symtab)
+    if lib_symtab.keys() & dynlib_symtab.keys():
+        print(f"Error: Symbol name conflict between libraries and dynamic libraries: {lib_symtab.keys() & dynlib_symtab.keys()}", file=sys.stderr)
+        sys.exit(1)
+    lib_symtab.update(dynlib_symtab)
 
     # Resolve symbol names
     symbol.apply_wraps(objs, args.wrap)
@@ -411,8 +426,9 @@ def link_dynamic_shared_library(args):
         symbols=out_symbols,
         relocations=out_relocations,
         data=out_data,
+        is_dynamic=True,
+        deps = [os.path.basename(f).encode() for f in dynamic_library_files],
     )
-    obj.is_dynamic = True
     Path(args.output).write_bytes(obj.serialize())
 
 def copy_input_to_output(args):

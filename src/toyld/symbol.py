@@ -1,7 +1,7 @@
 import os
 import sys
 
-from toyld.objfile import Symbol, parse_object, parse_module
+from toyld.objfile import Object, Symbol, parse_object, parse_module
 
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
@@ -77,6 +77,18 @@ class Module:
             return f"Module(file='{self.filename}', offset={self.offset:x}, size={self.size:x}, is_stub_library={self.is_stub_library})"
         elif self.format == 'dir':
             return f"Module(dir='{self.filename}', is_stub_library={self.is_stub_library})"
+
+def collect_dynamic_symbols(library_files):
+    symtab = {}
+    for file in library_files:
+        obj = parse_object(file)
+        for sym in obj.symbols.values():
+            if sym.sym_type == 'D':
+                if sym.name in symtab:
+                    print(f"Error: symbol '{sym.name}' is multiply defined in library files '{symtab[sym.name]}' and '{file}'", file=sys.stderr)
+                    sys.exit(1)
+                symtab[sym.name] = obj
+    return symtab
 
 def collect_symbols(library_dirs, library_files, is_stub_library=False):
     symtab = {}
@@ -179,11 +191,15 @@ def resolve_names(objs, lib_symtab, wrap_symbols):
             # load the library module and add it to the list of objects to visit
             mod = search_module(search_key, lib_symtab)
             dprint(f"Resolving symbol '{search_key}' from library file '{lib_symtab[search_key]}'")
-            if mod.format == 'dir':
+            if isinstance(mod, Object):
+                # Dynamic Shared Libraries are already parsed as objects, so we can directly use them without parsing again
+                lib_obj = mod
+            elif mod.format == 'dir':
                 lib_obj = parse_object(mod.filename, mod.is_stub_library)
+                lib_obj.mod = mod
             elif mod.format == 'file':
                 lib_obj = parse_module(mod.filename, offset=mod.offset, size=mod.size, is_stub_library=mod.is_stub_library)
-            lib_obj.mod = mod
+                lib_obj.mod = mod
             if is_wrapped_symbol:
                 apply_wraps([lib_obj], wrap_symbols)
             to_visit.append(lib_obj)

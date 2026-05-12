@@ -5,7 +5,7 @@ DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
 class Object:
-    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None, is_stub_library=False):
+    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None, is_stub_library=False, is_dynamic=False, deps=None):
         self.filename = filename
         self.num_segments = num_segments
         self.num_symbols = num_symbols
@@ -16,15 +16,16 @@ class Object:
         self.data = data
         self.is_stub_library = is_stub_library
         self.mod = None  # this will be used to store the Module object that this Object belongs to when we parse the input files into Modules and Objects
-        self.is_dynamic = False
+        self.is_dynamic = is_dynamic
+        self.deps = deps if deps else [] # This will be used to store the dependencies of this object if it's a dynamic shared library (LINKLIB) or an executable (LINK) with dynamic shared library dependencies.
 
     def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         contents = b''
         # Magic number
         if self.is_dynamic:
-            contents += b'LINKLIB\n'
+            contents = b' '.join([b'LINKLIB'] + self.deps) + b'\n'
         else:
-            contents += b'LINK\n'
+            contents = b' '.join([b'LINK'] + self.deps) + b'\n'
         # Header
         num_segments = len(self.segments)
         num_symbols = 0 if skip_symbols else len(self.symbols)
@@ -233,10 +234,11 @@ def parse_module(filename, offset, size, is_stub_library=False):
         return _parse_object(filename, reader, is_stub_library)
 
 def _parse_object(filename, reader, is_stub_library):
-    # Check magic number: 'LINK'
+    # Check magic number: 'LINK' or 'LINKLIB'
     line = read_next_line(reader)
-    if line != b'LINK':
-        print("Invalid file format: missing magic number 'LINK'", file=sys.stderr)
+    magic, *deps = line.split()
+    if magic not in (b'LINK', b'LINKLIB'):
+        print("Invalid file format: missing magic 'LINK' or 'LINKLIB'", file=sys.stderr)
         print(f"Got: {line}", file=sys.stderr)
         sys.exit(1)
 
@@ -251,7 +253,14 @@ def _parse_object(filename, reader, is_stub_library):
         print("Invalid header format: expected three integers", file=sys.stderr)
         sys.exit(1)
 
-    # Read segments
+    # Dynamic Shared Library (LINKLIB)
+    if magic == b'LINKLIB':
+        obj.is_dynamic = True
+
+    if deps:
+        obj.deps = deps
+
+    #Read segments
     obj.segments = parse_segments(reader, obj.num_segments)
     if is_stub_library:
         for seg in obj.segments:
