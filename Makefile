@@ -1,9 +1,8 @@
 SHELL=/bin/bash
-LINKER_NAME=linker.py
-LINK_CMD=./$(LINKER_NAME)
 
-LIBRARIAN_NAME=librarian.py
-LIB_CMD=./$(LIBRARIAN_NAME)
+LINK_CMD=python3 -m toyld.linker
+LIB_CMD=python3 -m toyld.librarian
+SYMWRAP_CMD=python3 -m toyld.symwrap
 
 GREEN=\033[0;32m
 RED=\033[0;31m
@@ -14,8 +13,8 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@passed=0; total=33; \
-	for t in $$(seq 1 33); do \
+	@passed=0; total=34; \
+	for t in $$(seq 1 34); do \
 		$(MAKE) --no-print-directory -s test$$t >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
@@ -34,8 +33,8 @@ all:
 .PHONY: ci
 ci:
 	# Run all tests verbosely; print output for each; exit non-zero if any failed
-	@passed=0; failed=0; total=33; \
-	for t in $$(seq 1 33); do \
+	@passed=0; failed=0; total=34; \
+	for t in $$(seq 1 34); do \
 		printf "=== Test $$t ===\n"; \
 		$(MAKE) --no-print-directory test$$t 2>&1; \
 		if [ $$? -eq 0 ]; then \
@@ -509,7 +508,7 @@ test21:
 	# wrapped_caller.lk: num_symbols stays 2 (main + wrap_malloc), reloc still refs sym 2
 	# wrapped_impl.lk:   num_symbols must be updated to 2 (wrap_malloc U + real_malloc D)
 	rm -rf $(BUILD_DIR)/symwrap && mkdir -p $(BUILD_DIR)/symwrap \
-		&& ./symwrap.py --wrap malloc $(TEST_DIR)/caller.lk $(TEST_DIR)/impl.lk -o $(BUILD_DIR)/symwrap \
+		&& $(SYMWRAP_CMD) --wrap malloc $(TEST_DIR)/caller.lk $(TEST_DIR)/impl.lk -o $(BUILD_DIR)/symwrap \
 		&& diff -r $(BUILD_DIR)/symwrap $(TEST_DIR)/cmp \
 		&& printf "$(GREEN)Test 21 passed$(RESET)""\n" || { printf "$(RED)Test 21 failed$(RESET)""\n"; false; }
 

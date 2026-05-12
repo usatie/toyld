@@ -34,12 +34,16 @@ class GlobalSymbol:
     @property
     def is_undefined(self):
         return self.lsym.is_undefined
+    
+    @property
+    def segment_name(self):
+        return self.obj.segments[self.lsym.seg_number - 1].name
 
     def to_local(self):
         return Symbol.absolute(self.name, self.value)
 
     def __repr__(self):
-        return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, is_common={self.is_common}, obj={self.obj.filename}, value={self.value})"
+        return f"GlobalSymbol(name={self.name}, is_defined={self.is_defined}, is_common={self.is_common}, obj={self.obj.filename}, value={self.value}, lsym={self.lsym})"
 
 class Module:
     @staticmethod

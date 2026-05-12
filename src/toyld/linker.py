@@ -342,8 +342,78 @@ def write_stub_library_directory(output_dir, link_results):
     os.remove(temp_file)
 
 def link_dynamic_shared_library(args):
-    print("Dynamic shared library linking is not implemented yet", file=sys.stderr)
-    exit(1)
+    # Input files may contain libraries, so we need to separately treat them
+    library_dirs = []
+    library_files = []
+    stub_library_dirs = []
+    stub_library_files = []
+    object_files = []
+    for f in args.input_files:
+        if os.path.isdir(f):
+            if is_stub_library_directory(f):
+                stub_library_dirs.append(f)
+            else:
+                library_dirs.append(f)
+        elif is_library_file(f):
+            library_files.append(f)
+        elif is_stub_library_file(f):
+            stub_library_files.append(f)
+        elif is_object_file(f):
+            object_files.append(f)
+        else:
+            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
+            sys.exit(1)
+    objs = parse_objects(object_files)
+    lib_symtab = symbol.collect_symbols(library_dirs, library_files)
+    stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
+    if lib_symtab.keys() & stublib_symtab.keys():
+        print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
+        sys.exit(1)
+    lib_symtab.update(stublib_symtab)
+
+    # Resolve symbol names
+    symbol.apply_wraps(objs, args.wrap)
+    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
+
+    # Allocate Storage for .text, .data, .bss segments and assign addresses
+    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='executable')
+
+    # Resolve symbol values
+    symbol.resolve_values(objs, gsymtab, out_segments)
+
+    # Filter out symbols from stub libraries (they're already resolved and should not be exported in the executable)
+    out_gsymtab = {name:gsym for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
+
+    # For dynamic shared library, we want to export non-absolute symbols
+    out_symbols = {}
+    for gsym in out_gsymtab.values():
+        seg_number, gseg = next(((i+1, seg) for i, seg in enumerate(out_segments) if seg.name == gsym.segment_name), (None, None))
+        offset = gsym.value - gseg.start # Offset within the segment
+        out_symbols[gsym.name] = Symbol(name=gsym.name, value=offset, seg_number=seg_number, sym_type='D')
+
+    # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
+    lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
+    if lib_seg:
+        out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
+
+    # Relocate and generate output data
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
+    out_data = [v for v in gdata.values()]
+
+
+    # Write to file
+    obj = Object(
+        filename=args.output,
+        num_segments=len(out_segments),
+        num_symbols=len(out_symbols),
+        num_relocations=len(out_relocations),
+        segments=out_segments,
+        symbols=out_symbols,
+        relocations=out_relocations,
+        data=out_data,
+    )
+    obj.is_dynamic = True
+    Path(args.output).write_bytes(obj.serialize())
 
 def copy_input_to_output(args):
     obj = parse_object(args.input_files[0])

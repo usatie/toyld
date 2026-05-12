@@ -1,6 +1,9 @@
 LINK
-1 2 0
+2 3 0
 .text 0 8 RP
+addrp 0 4 RP
 add 0 1 D
 sub 4 1 D
+addrpsym 0 2 D
 deadbeef11223344
+cafebabe

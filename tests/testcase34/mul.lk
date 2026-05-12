@@ -1,5 +1,11 @@
 LINK
-1 1 0
+3 3 0
 .text 0 4 RP
+.data 0 4 RWP
+mulrwp 0 4 RWP
 mul 0 1 D
-cafebabe
+mulval 0 2 D
+mulrwpsym 0 3 D
+aabbccdd
+55667788
+99aabbcc

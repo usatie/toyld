@@ -1,9 +1,17 @@
 LINKLIB
-3 3 0
+5 6 0
 .text 1000 c RP
-.data 2000 0 RWP
-.bss 2000 0 RW
-add 1000 1 D
-sub 1004 1 D
-mul 1008 1 D
-deadbeef11223344cafebabe
+addrp 100c 4 RP
+.data 2000 4 RWP
+mulrwp 2004 4 RWP
+.bss 2008 0 RW
+add 0 1 D
+sub 4 1 D
+addrpsym 0 2 D
+mul 8 1 D
+mulval 0 3 D
+mulrwpsym 0 4 D
+deadbeef11223344aabbccdd
+cafebabe
+55667788
+99aabbcc
