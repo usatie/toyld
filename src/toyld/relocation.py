@@ -121,4 +121,6 @@ def relocate(objs, gsymtab, gdata, byteorder, out_segments):
             ret = handler(ctx)
             if isinstance(ret, Relocation):
                 out_relocations.append(ret)
+    # 1st key: segment number, 2nd key: offset
+    out_relocations.sort(key=lambda r: (r.seg_number, r.loc))
     return out_relocations
