@@ -3,7 +3,8 @@ LINK libmath.dso
 .text 1000 8 RP
 .data 2000 0 RWP
 .bss 2000 0 RW
-main 1000 1 D
+main 1000 0 D
 add 0 0 U
 4 1 2 AS4
 deadbeef00000000
+

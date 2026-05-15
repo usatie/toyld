@@ -4,7 +4,7 @@ LINK libmath.dso libprint.dso
 .got 2000 4 RWP
 .data 2004 4 RWP
 .bss 2008 0 RW
-main 1000 1 D
+main 1000 0 D
 add 0 0 U
 printf 0 0 U
 puts 0 0 U
