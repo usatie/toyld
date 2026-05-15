@@ -13,8 +13,8 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@passed=0; total=34; \
-	for t in $$(seq 1 34); do \
+	@passed=0; total=35; \
+	for t in $$(seq 1 35); do \
 		$(MAKE) --no-print-directory -s test$$t >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
@@ -33,8 +33,8 @@ all:
 .PHONY: ci
 ci:
 	# Run all tests verbosely; print output for each; exit non-zero if any failed
-	@passed=0; failed=0; total=34; \
-	for t in $$(seq 1 34); do \
+	@passed=0; failed=0; total=35; \
+	for t in $$(seq 1 35); do \
 		printf "=== Test $$t ===\n"; \
 		$(MAKE) --no-print-directory test$$t 2>&1; \
 		if [ $$? -eq 0 ]; then \
@@ -811,17 +811,17 @@ test35: TEST_DIR=tests/testcase35
 test35:
 	# Test 35 for project 10.1: Producer — dynamic shared library with imports + GOT + .data import + dep with own LINKLIB
 	#
-	# printf.lk: defines printf (.text 16B), imports write (AS4@4), log (RS4@8), stdout (GP4@c), errno (AS4 in .data[0])
+	# printf.lk: defines printf (.text 16B), imports write (AS4@4), log (GP4@8), stdout (GP4@c), errno (AS4 in .data[0])
 	# libio.dso: fixture defining write/log/stdout/errno; has own header "LINKLIB libsys.dso" (libsys.dso NOT present)
 	#
 	# Linked with --shared --dynamic (default base 0x1000), big-endian:
-	#   .text 0x1000 0x10B: GP4→stdout patched to GOT-relative offset 0 → no output reloc at .text[c]
-	#   .got  0x2000 4B: 1 slot for stdout (binder fills) → AS4 at .got[0]
-	#   .data 0x2004 4B: errno_ptr slot (binder fills) → AS4 at .data[0]
-	#   .bss  0x2008 0B
+	#   .text 0x1000 0x10B: GP4 sites patched to GOT-relative offsets (log→0, stdout→4) → no output relocs at .text[8], .text[c]
+	#   .got  0x2000 8B: 2 slots (log, stdout) → AS4 at .got[0] (log), AS4 at .got[4] (stdout)
+	#   .data 0x2008 4B: errno_ptr slot (binder fills) → AS4 at .data[0]
+	#   .bss  0x200c 0B
 	#
 	# Output libprint.dso: header "LINKLIB libio.dso" (libsys.dso NOT propagated),
-	# 5 symbols (printf D, write/log/stdout/errno U), 4 relocs (AS4×3 + RS4×1).
+	# 5 symbols (printf D, write/log/stdout/errno U), 4 relocs (AS4×4).
 	rm -rf $(BUILD_DIR) && mkdir -p $(BUILD_DIR) \
 		&& $(LINK_CMD) $(TEST_DIR)/printf.lk $(TEST_DIR)/libio.dso --shared --dynamic --byteorder big --output $(BUILD_DIR)/libprint.dso \
 		&& diff -U 1 $(BUILD_DIR)/libprint.dso $(TEST_DIR)/cmp \
