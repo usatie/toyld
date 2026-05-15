@@ -82,6 +82,7 @@ def link_executable(args):
     library_files = []
     stub_library_dirs = []
     stub_library_files = []
+    dynamic_library_files = []
     object_files = []
     for f in args.input_files:
         if os.path.isdir(f):
@@ -93,6 +94,8 @@ def link_executable(args):
             library_files.append(f)
         elif is_stub_library_file(f):
             stub_library_files.append(f)
+        elif is_dynamic_shared_library_file(f):
+            dynamic_library_files.append(f)
         elif is_object_file(f):
             object_files.append(f)
         else:
@@ -101,10 +104,15 @@ def link_executable(args):
     objs = parse_objects(object_files)
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
     stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
+    dynlib_symtab = symbol.collect_dynamic_symbols(dynamic_library_files)
     if lib_symtab.keys() & stublib_symtab.keys():
         print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
         sys.exit(1)
     lib_symtab.update(stublib_symtab)
+    if lib_symtab.keys() & dynlib_symtab.keys():
+        print(f"Error: Symbol name conflict between libraries and dynamic libraries: {lib_symtab.keys() & dynlib_symtab.keys()}", file=sys.stderr)
+        sys.exit(1)
+    lib_symtab.update(dynlib_symtab)
 
     # Resolve symbol names
     symbol.apply_wraps(objs, args.wrap)
@@ -112,11 +120,21 @@ def link_executable(args):
 
     # Allocate Storage for .text, .data, .bss segments and assign addresses
     out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='executable')
+
     # Resolve symbol values
     symbol.resolve_values(objs, gsymtab, out_segments)
 
     # Filter out symbols from stub libraries (they're already resolved and should not be exported in the executable)
-    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
+    out_gsymtab = {name:gsym for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
+
+    # For dynamic shared library, we want to export non-absolute symbols
+    out_symbols = {}
+    for i, gsym in enumerate(out_gsymtab.values()):
+        if gsym.obj.is_dynamic_shared_lib:
+            out_symbols[gsym.name] = Symbol(name=gsym.name, value=0, seg_number=0, sym_type='U', number=i+1)
+        else:
+            # Executable is not relinkable, so absolute symbol
+            out_symbols[gsym.name] = gsym.to_local()
 
     # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
     lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
@@ -127,16 +145,21 @@ def link_executable(args):
     out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
     out_data = [v for v in gdata.values()]
 
+
     # Write to file
-    write_output(
-        args.output,
-        (out_segments, out_symbols, out_relocations, out_data),
-        WriteOptions(
-            skip_symbols=args.skip_symbols,
-            skip_relocations=args.skip_relocations,
-            skip_data=args.skip_data,
-        ),
+    obj = Object(
+        filename=args.output,
+        num_segments=len(out_segments),
+        num_symbols=len(out_symbols),
+        num_relocations=len(out_relocations),
+        segments=out_segments,
+        symbols=out_symbols,
+        relocations=out_relocations,
+        data=out_data,
+        is_dynamic_shared_lib=False,
+        deps = [os.path.basename(f).encode() for f in dynamic_library_files],
     )
+    Path(args.output).write_bytes(obj.serialize(skip_symbols=args.skip_symbols, skip_relocations=args.skip_relocations, skip_data=args.skip_data))
 
 def collect_objects(library_dirs, library_files):
     objs = []

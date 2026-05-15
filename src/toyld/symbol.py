@@ -130,6 +130,10 @@ def collect_symbols(library_dirs, library_files, is_stub_library=False):
 
 def _merge_symbol(lsym, o, gsymtab):
     if lsym.name not in gsymtab:
+        # We will only add symbols from dynamic shared libraries to the global symtab when we resolve undefined symbols
+        if o.is_dynamic_shared_lib:
+            return 
+        # Otherwise, we want to add all symbols
         gsymtab[lsym.name] = GlobalSymbol.from_local(lsym, o)
         return
 
