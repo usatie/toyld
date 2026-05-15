@@ -13,8 +13,8 @@ OUT=$(BUILD_DIR)/a.out.lk
 
 .PHONY: all
 all:
-	@passed=0; total=35; \
-	for t in $$(seq 1 35); do \
+	@passed=0; total=37; \
+	for t in $$(seq 1 37); do \
 		$(MAKE) --no-print-directory -s test$$t >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			passed=$$((passed+1)); \
@@ -33,8 +33,8 @@ all:
 .PHONY: ci
 ci:
 	# Run all tests verbosely; print output for each; exit non-zero if any failed
-	@passed=0; failed=0; total=35; \
-	for t in $$(seq 1 35); do \
+	@passed=0; failed=0; total=37; \
+	for t in $$(seq 1 37); do \
 		printf "=== Test $$t ===\n"; \
 		$(MAKE) --no-print-directory test$$t 2>&1; \
 		if [ $$? -eq 0 ]; then \
