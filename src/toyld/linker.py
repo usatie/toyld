@@ -190,7 +190,7 @@ def collect_objects(library_dirs, library_files):
                 objs.append(lib_obj)
     return objs
 
-def link_shared_library(args):
+def link_static_shared_library(args):
     # Input files shall be only libraries
     library_dirs = []
     library_files = []
@@ -466,7 +466,7 @@ def main():
         link_dynamic_shared_library(args)
     elif args.shared:
         # Link Static Shared Library (with stub library)
-        link_shared_library(args)
+        link_static_shared_library(args)
     elif len(args.input_files) == 1:
         # If only one input file, just copy it to the output (with optional skipping)
         copy_input_to_output(args)
