@@ -210,8 +210,12 @@ def parse_data(f, num_data):
         line = read_next_line(f)
         # The line is a hex string representing the data section, so we need to convert it to bytes
         if line is None:
-            print(f"Unexpected end of file while reading data section", file=sys.stderr)
-            sys.exit(1)
+            data.append(b'') # It is possible that the data section is empty, so we can treat EOF as an empty data section
+            if i < num_data - 1:
+                print(f"Unexpected end of file while reading data sections: expected {num_data} sections, but got {i + 1}", file=sys.stderr)
+                sys.exit(1)
+            continue
+
         try:
             datum = bytes.fromhex(line.decode())
             dprint(f"Data section length: {len(datum)} bytes")
