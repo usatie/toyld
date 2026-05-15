@@ -1,5 +1,6 @@
 import sys
 from dataclasses import dataclass
+from typing import Optional
 
 from toyld.objfile import Relocation
 
