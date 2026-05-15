@@ -295,6 +295,10 @@ def _parse_object(filename, reader, is_stub_library):
     # count all segments that have 'P': present in their code letter
     num_data = sum(1 for seg in obj.segments if 'P' in seg.code_letter)
     obj.data = parse_data(reader, num_data)
+    for i, seg in enumerate(s for s in obj.segments if 'P' in s.code_letter):
+        if seg.size != len(obj.data[i]):
+            print(f"Data length mismatch for segment '{seg.name}': expected {seg.size} bytes, got {len(obj.data[i])} bytes", file=sys.stderr)
+            sys.exit(1)
     return obj
 
 def parse_objects(input_files):
