@@ -3,30 +3,20 @@
 import argparse
 import os
 from pathlib import Path
-import sys
 
-from toyld.objfile import (
-    Object, 
-    Segment, 
-    Symbol, 
-    Relocation, 
-    parse_objects, 
-    parse_object, 
-    parse_module
+from toyld.objfile import parse_object
+from toyld.link import (
+    link_executable,
+    link_dynamic_shared_library,
+    link_static_shared_library,
+    DynamicSharedConfig,
+    ExecutableConfig,
+    LinkConfig,
+    StaticSharedConfig,
 )
 
-import toyld.relocation as relocation
-import toyld.storage as storage
-import toyld.symbol as symbol
 
-
-def parse_args():
-    if len(sys.argv) < 2:
-        file_name = sys.argv[0]
-        print(f"Usage: {file_name} <input_file>", file=sys.stderr)
-        sys.exit(1)
-
-    # parse cli args to populate SKIP_SYMBOLS, SKIP_RELOCATIONS, SKIP_DATA
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Simple linker that processes input files and produces an output file.')
     parser.add_argument('input_files', nargs='+', help='Input files to process')
     parser.add_argument('--skip-symbols', action='store_true', help='Skip processing symbols', default=False)
@@ -40,7 +30,7 @@ def parse_args():
     parser.add_argument('--base-addr', type=lambda x: int(x, 16), help='Specify base address for output segments (default: 0x1000)', default=0x1000)
     parser.add_argument('--stub-format', choices=['directory', 'file'], default='directory', help='Specify format for stub libraries (default: directory)')
     parser.add_argument('--stub-output', help='Specify output file name for stub library')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     is_static_shared = args.shared and not args.dynamic
     if is_static_shared and not args.stub_output:
         parser.error("--shared requires --stub-output to be specified")
@@ -48,431 +38,48 @@ def parse_args():
         parser.error(f"--stub-output file name must be the same as output file name when --shared is specified. Expected '{os.path.basename(args.output)}', got '{os.path.basename(args.stub_output)}'")
     return args
 
-def is_object_file(filename):
-    with open(filename, 'rb') as infile:
-        magic = infile.read(5)
-        return magic == b'LINK\n'
 
-def is_library_file(filename):
-    with open(filename, 'rb') as infile:
-        line = infile.readline()
-        fields = line.strip().split()
-        magic = fields[0] if len(fields) > 0 else b''
-        return magic == b'LIBRARY' and len(fields) == 3
-
-def is_stub_library_file(filename):
-    with open(filename, 'rb') as infile:
-        line = infile.readline()
-        fields = line.strip().split()
-        magic = fields[0] if len(fields) > 0 else b''
-        return magic == b'LIBRARY' and len(fields) > 3
-
-def is_stub_library_directory(dirname):
-    # If "LIBRARY NAME" file exists, it's a stub library
-    return os.path.isfile(os.path.join(dirname, 'LIBRARY NAME'))
-
-def is_dynamic_shared_library_file(filename):
-    with open(filename, 'rb') as infile:
-        magic = infile.read(7)
-        return magic == b'LINKLIB' and infile.read(1) in (b' ', b'\n')
-
-def link_executable(args):
-    # Input files may contain libraries, so we need to separately treat them
-    library_dirs = []
-    library_files = []
-    stub_library_dirs = []
-    stub_library_files = []
-    dynamic_library_files = []
-    object_files = []
-    for f in args.input_files:
-        if os.path.isdir(f):
-            if is_stub_library_directory(f):
-                stub_library_dirs.append(f)
-            else:
-                library_dirs.append(f)
-        elif is_library_file(f):
-            library_files.append(f)
-        elif is_stub_library_file(f):
-            stub_library_files.append(f)
-        elif is_dynamic_shared_library_file(f):
-            dynamic_library_files.append(f)
-        elif is_object_file(f):
-            object_files.append(f)
-        else:
-            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
-            sys.exit(1)
-    objs = parse_objects(object_files)
-    lib_symtab = symbol.collect_symbols(library_dirs, library_files)
-    stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
-    dynlib_symtab = symbol.collect_dynamic_symbols(dynamic_library_files)
-    if lib_symtab.keys() & stublib_symtab.keys():
-        print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
-        sys.exit(1)
-    lib_symtab.update(stublib_symtab)
-    if lib_symtab.keys() & dynlib_symtab.keys():
-        print(f"Error: Symbol name conflict between libraries and dynamic libraries: {lib_symtab.keys() & dynlib_symtab.keys()}", file=sys.stderr)
-        sys.exit(1)
-    lib_symtab.update(dynlib_symtab)
-
-    # Resolve symbol names
-    symbol.apply_wraps(objs, args.wrap)
-    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
-
-    # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='executable')
-
-    # Resolve symbol values
-    symbol.resolve_values(objs, gsymtab, out_segments)
-
-    # Filter out symbols from stub libraries (they're already resolved and should not be exported in the executable)
-    out_gsymtab = {name:gsym for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
-
-    # For dynamic shared library, we want to export non-absolute symbols
-    out_symbols = {}
-    for i, gsym in enumerate(out_gsymtab.values()):
-        if gsym.obj.is_dynamic_shared_lib:
-            out_symbols[gsym.name] = Symbol(name=gsym.name, value=0, seg_number=0, sym_type='U', number=i+1)
-        else:
-            # Executable is not relinkable, so absolute symbol
-            out_symbols[gsym.name] = gsym.to_local()
-
-    # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
-    lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
-    if lib_seg:
-        out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
-
-    # Relocate and generate output data
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
-    out_data = [v for v in gdata.values()]
-
-
-    # Write to file
-    obj = Object(
-        filename=args.output,
-        num_segments=len(out_segments),
-        num_symbols=len(out_symbols),
-        num_relocations=len(out_relocations),
-        segments=out_segments,
-        symbols=out_symbols,
-        relocations=out_relocations,
-        data=out_data,
-        is_dynamic_shared_lib=False,
-        deps = [os.path.basename(f).encode() for f in dynamic_library_files],
+def args_to_config(args: argparse.Namespace) -> LinkConfig:
+    common = dict(
+        input_files=args.input_files,
+        output=args.output,
+        byteorder=args.byteorder,
+        wrap=args.wrap,
+        base_addr=args.base_addr,
     )
-    Path(args.output).write_bytes(obj.serialize(skip_symbols=args.skip_symbols, skip_relocations=args.skip_relocations, skip_data=args.skip_data))
-
-def collect_objects(library_dirs, library_files):
-    objs = []
-    for lib_dir in library_dirs:
-        distinct_object_files = set()
-        entries = os.listdir(lib_dir)
-        for filename in sorted(entries):
-            # Check if the file is already included (same inode)
-            file_path = os.path.join(lib_dir, filename)
-            file_inode = os.stat(file_path).st_ino
-            if file_inode in distinct_object_files:
-                continue
-            objs.append(parse_object(file_path))
-            distinct_object_files.add(file_inode)
-    for file in library_files:
-        with open(file, 'r') as f:
-            line = f.readline()
-            magic, nmods, dir_offset = line.strip().split()
-            nmods = int(nmods, 16)
-            dir_offset = int(dir_offset, 16)
-            f.seek(dir_offset)
-            for i in range(nmods):
-                line = f.readline()
-                mod_offset, mod_size, *symbol_strs = line.strip().split()
-                mod_offset = int(mod_offset, 16)
-                mod_size = int(mod_size, 16)
-                lib_obj = parse_module(file, offset=mod_offset, size=mod_size)
-                objs.append(lib_obj)
-    return objs
-
-def link_static_shared_library(args):
-    # Input files shall be only libraries
-    library_dirs = []
-    library_files = []
-    stub_library_dirs = []
-    stub_library_files = []
-    for f in args.input_files:
-        if os.path.isdir(f):
-            if is_stub_library_directory(f):
-                stub_library_dirs.append(f)
-            else:
-                library_dirs.append(f)
-        elif is_library_file(f):
-            library_files.append(f)
-        elif is_stub_library_file(f):
-            stub_library_files.append(f)
-        elif is_object_file(f):
-            print(f"Warning: {f} is an object file, but --shared option is specified. Input files for shared library should be libraries, skipping", file=sys.stderr)
-            sys.exit(1)
-        else:
-            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
-            sys.exit(1)
-    objs = collect_objects(library_dirs, library_files)
-
-    # Link collected objects
-    lib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
-
-    # Resolve symbol names
-    symbol.apply_wraps(objs, args.wrap)
-    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
-
-    # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='shared')
-    # Resolve symbol values
-    symbol.resolve_values(objs, gsymtab, out_segments)
-    # Filter out symbols from stub libraries since they're already resolved and should not be exported in the shared library
-    out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
-    out_data = [v for v in gdata.values()]
-
-    write_stub_library(args.stub_output, (out_segments, out_symbols, out_relocations, out_data, stub_library_dirs + stub_library_files), args.stub_format)
-    args.skip_relocations = True # For shared library, we can't have relocations
-    write_output(
-        args.output,
-        (out_segments, out_symbols, out_relocations, out_data),
-        WriteOptions(skip_relocations=True), # For shared library, we can't have relocations
-    )
-
-class WriteOptions:
-    def __init__(self, skip_symbols=False, skip_relocations=False, skip_data=False):
-        self.skip_symbols = skip_symbols
-        self.skip_relocations = skip_relocations
-        self.skip_data = skip_data
-
-def write_output(filename, link_results, options):
-
-    out_segments, out_symbols, out_relocations, out_data = link_results
-
-    obj = Object(
-        filename=filename,
-        num_segments=len(out_segments),
-        num_symbols=len(out_symbols),
-        num_relocations=len(out_relocations),
-        segments=out_segments,
-        symbols=out_symbols,
-        relocations=out_relocations,
-        data=out_data,
-    )
-
-    contents = obj.serialize(
-        skip_symbols=options.skip_symbols,
-        skip_relocations=options.skip_relocations,
-        skip_data=options.skip_data,
+    if args.shared and args.dynamic:
+        return DynamicSharedConfig(**common)
+    if args.shared:
+        return StaticSharedConfig(
+            **common,
+            stub_output=args.stub_output,
+            stub_format=args.stub_format,
         )
-        
-    # Check if the output file already exists and remove it
-    if os.path.exists(filename):
-        os.remove(filename)
-
-    with open(filename, 'wb') as outfile:
-        outfile.write(contents)
-
-def write_stub_library(filename, link_results, stub_format):
-    if stub_format == 'directory':
-        write_stub_library_directory(filename, link_results)
-    elif stub_format == 'file':
-        write_stub_library_file(filename, link_results)
-    else:
-        print(f"Error: Invalid stub format '{stub_format}' specified", file=sys.stderr)
-        sys.exit(1)
-
-def write_stub_library_file(output_file, link_results):
-    out_segments, out_symbols, out_relocations, out_data, dependencies = link_results
-    stub_out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter.replace('P', '')) for seg in out_segments]
-
-    # Module content (only one)
-    mod = Object(
-        filename='',
-        num_segments=len(stub_out_segments),
-        num_symbols=len(out_symbols),
-        num_relocations=0,
-        segments=stub_out_segments,
-        symbols=out_symbols,
-        relocations=[],
-        data=[]
-    )
-    contents = mod.serialize(
-        skip_symbols=False,
-        skip_relocations=True,
-        skip_data=True
-        )
-    mod_size = len(contents)
-
-    # Header (only one module, so it's deterministic)
-    tmp_dir_offset = 0x10 + mod_size
-    num_files = 1
-    dep_str = ' '.join([os.path.basename(f) for f in [output_file] + dependencies])
-    header = f"LIBRARY {num_files:x} {tmp_dir_offset:x} {dep_str}\n".encode()
-    dir_offset = len(header) + len(contents)
-    while dir_offset != tmp_dir_offset:
-        tmp_dir_offset = dir_offset
-        header = f"LIBRARY {num_files:x} {tmp_dir_offset:x} {dep_str}\n".encode()
-        dir_offset = len(header) + len(contents)
-
-    # Directory entries (one per symbol)
-    dir_entries = b''
-    mod_offset = len(header)
-    symbols_str = ' '.join(name for name, sym in mod.symbols.items() if sym.sym_type == 'D' or (sym.sym_type == 'U' and sym.value > 0))
-    dir_entries += f"{mod_offset:x} {mod_size:x} {symbols_str}\n".encode()
-
-    # Write
-    with open(output_file, 'wb') as outfile:
-        outfile.write(header)
-        outfile.write(contents)
-        outfile.write(dir_entries)
-
-def write_stub_library_directory(output_dir, link_results):
-    out_segments, out_symbols, out_relocations, out_data, dependencies = link_results
-
-    # Create output directory
-    if os.path.exists(output_dir):
-        print(f"Output directory '{output_dir}' already exists. Please remove it or choose a different name.", file=sys.stderr)
-        sys.exit(1)
-    os.mkdir(output_dir)
-    
-    # Add "LIBRARY NAME" file
-    library_name_file = os.path.join(output_dir, 'LIBRARY NAME')
-    with open(library_name_file, 'w') as f:
-        # Library name itself
-        lib_name = os.path.basename(output_dir)
-        f.write(f"{lib_name}\n")
-        # List dependencies (one per line)
-        for dep in dependencies:
-            dep_name = os.path.basename(dep)
-            f.write(f"{dep_name}\n")
-
-    # Create a temporary output file to link from (the contents don't matter since we will skip symbols and relocations when writing the output)
-    temp_file = os.path.join(output_dir, 'TEMP_STUB_FILE')
-
-    # Remove 'P' from segment name if it exists, since it's not valid for object files
-    stub_out_segments = [Segment(seg.name, seg.start, seg.size, seg.code_letter.replace('P', '')) for seg in out_segments]
-    write_output(
-        temp_file,
-        (stub_out_segments, out_symbols, [], []),
-        WriteOptions(
-            skip_symbols=False,
-            skip_relocations=True,
-            skip_data=True,
-        ),
+    return ExecutableConfig(
+        **common,
+        skip_symbols=args.skip_symbols,
+        skip_relocations=args.skip_relocations,
+        skip_data=args.skip_data,
     )
 
-    # Add hardlinks to each symbol in the output directory
-    for name in out_symbols.keys():
-        link_path = os.path.join(output_dir, name)
-        os.link(temp_file, link_path)
 
-    # Delete the output file (the hardlink will still exist in the output directory)
-    os.remove(temp_file)
+def copy_input_to_output(config: ExecutableConfig):
+    obj = parse_object(config.input_files[0])
+    Path(config.output).write_bytes(obj.serialize())
 
-def link_dynamic_shared_library(args):
-    # Input files may contain libraries, so we need to separately treat them
-    library_dirs = []
-    library_files = []
-    stub_library_dirs = []
-    stub_library_files = []
-    dynamic_library_files = []
-    object_files = []
-    for f in args.input_files:
-        if os.path.isdir(f):
-            if is_stub_library_directory(f):
-                stub_library_dirs.append(f)
-            else:
-                library_dirs.append(f)
-        elif is_library_file(f):
-            library_files.append(f)
-        elif is_stub_library_file(f):
-            stub_library_files.append(f)
-        elif is_dynamic_shared_library_file(f):
-            dynamic_library_files.append(f)
-        elif is_object_file(f):
-            object_files.append(f)
-        else:
-            print(f"Warning: {f} is not a valid object file or library, skipping", file=sys.stderr)
-            sys.exit(1)
-    objs = parse_objects(object_files)
-    lib_symtab = symbol.collect_symbols(library_dirs, library_files)
-    stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
-    dynlib_symtab = symbol.collect_dynamic_symbols(dynamic_library_files)
-    if lib_symtab.keys() & stublib_symtab.keys():
-        print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
-        sys.exit(1)
-    lib_symtab.update(stublib_symtab)
-    if lib_symtab.keys() & dynlib_symtab.keys():
-        print(f"Error: Symbol name conflict between libraries and dynamic libraries: {lib_symtab.keys() & dynlib_symtab.keys()}", file=sys.stderr)
-        sys.exit(1)
-    lib_symtab.update(dynlib_symtab)
-
-    # Resolve symbol names
-    symbol.apply_wraps(objs, args.wrap)
-    gsymtab = symbol.resolve_names(objs, lib_symtab, args.wrap)
-
-    # Allocate Storage for .text, .data, .bss segments and assign addresses
-    out_segments, gdata = storage.allocate(objs, gsymtab, args.base_addr, output_type='executable')
-
-    # Resolve symbol values
-    symbol.resolve_values(objs, gsymtab, out_segments)
-
-    # Filter out symbols from stub libraries (they're already resolved and should not be exported in the executable)
-    out_gsymtab = {name:gsym for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
-
-    # For dynamic shared library, we want to export non-absolute symbols
-    out_symbols = {}
-    for i, gsym in enumerate(out_gsymtab.values()):
-        if gsym.obj.is_dynamic_shared_lib:
-            out_symbols[gsym.name] = Symbol(name=gsym.name, value=0, seg_number=0, sym_type='U', number=i+1)
-        else:
-            seg_number, gseg = next(((i+1, seg) for i, seg in enumerate(out_segments) if seg.name == gsym.segment_name), (None, None))
-            offset = gsym.value - gseg.start # Offset within the segment
-            out_symbols[gsym.name] = Symbol(name=gsym.name, value=offset, seg_number=seg_number, sym_type='D', number=i+1)
-
-    # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
-    lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
-    if lib_seg:
-        out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
-
-    # Relocate and generate output data
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
-    out_data = [v for v in gdata.values()]
-
-
-    # Write to file
-    obj = Object(
-        filename=args.output,
-        num_segments=len(out_segments),
-        num_symbols=len(out_symbols),
-        num_relocations=len(out_relocations),
-        segments=out_segments,
-        symbols=out_symbols,
-        relocations=out_relocations,
-        data=out_data,
-        is_dynamic_shared_lib=True,
-        deps = [os.path.basename(f).encode() for f in dynamic_library_files],
-    )
-    Path(args.output).write_bytes(obj.serialize())
-
-def copy_input_to_output(args):
-    obj = parse_object(args.input_files[0])
-    Path(args.output).write_bytes(obj.serialize())
 
 def main():
     args = parse_args()
-    if args.shared and args.dynamic:
-        # Link Dynamic Shared Library
-        link_dynamic_shared_library(args)
-    elif args.shared:
-        # Link Static Shared Library (with stub library)
-        link_static_shared_library(args)
-    elif len(args.input_files) == 1:
-        # If only one input file, just copy it to the output (with optional skipping)
-        copy_input_to_output(args)
+    config = args_to_config(args)
+    if isinstance(config, DynamicSharedConfig):
+        link_dynamic_shared_library(config)
+    elif isinstance(config, StaticSharedConfig):
+        link_static_shared_library(config)
+    elif len(config.input_files) == 1:
+        copy_input_to_output(config)
     else:
-        # Multiple input files, need to link them together
-        link_executable(args)
+        link_executable(config)
+
 
 if __name__ == '__main__':
     main()
