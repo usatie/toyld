@@ -268,17 +268,10 @@ def _parse_object(filename, reader, is_stub_library):
         # num are written in hex, so we need to convert them from hex to int
         num_segments, num_symbols, num_relocations = map(lambda x: int(x, 16), line.split())
         dprint(f"Header: num_segments={num_segments}, num_symbols={num_symbols}, num_relocations={num_relocations}")
-        obj = Object(filename, num_segments, num_symbols, num_relocations, is_stub_library=is_stub_library)
+        obj = Object(filename, num_segments, num_symbols, num_relocations, is_stub_library=is_stub_library, is_dynamic_shared_lib=(magic == b'LINKLIB'), deps=deps)
     except ValueError:
         print("Invalid header format: expected three integers", file=sys.stderr)
         sys.exit(1)
-
-    # Dynamic Shared Library (LINKLIB)
-    if magic == b'LINKLIB':
-        obj.is_dynamic = True
-
-    if deps:
-        obj.deps = deps
 
     #Read segments
     obj.segments = parse_segments(reader, obj.num_segments)
