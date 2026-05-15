@@ -3,9 +3,9 @@ LINKLIB libsys.dso
 .text 1000 8 RP
 .data 2000 8 RWP
 .bss 2008 0 RW
-write 1000 1 D
-log 1004 1 D
-stdout 2000 2 D
-errno 2004 2 D
+write 0 1 D
+log 4 1 D
+stdout 0 2 D
+errno 4 2 D
 0102030405060708
 deadbeefcafebabe

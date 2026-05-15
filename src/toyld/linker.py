@@ -74,7 +74,6 @@ def is_stub_library_directory(dirname):
 def is_dynamic_shared_library_file(filename):
     with open(filename, 'rb') as infile:
         magic = infile.read(7)
-        print(f"{filename}: magic={magic}", file=sys.stderr)
         return magic == b'LINKLIB' and infile.read(1) in (b' ', b'\n')
 
 def link_executable(args):
@@ -125,7 +124,7 @@ def link_executable(args):
         out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
 
     # Relocate and generate output data
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
     out_data = [v for v in gdata.values()]
 
     # Write to file
@@ -205,7 +204,7 @@ def link_shared_library(args):
     symbol.resolve_values(objs, gsymtab, out_segments)
     # Filter out symbols from stub libraries since they're already resolved and should not be exported in the shared library
     out_symbols = {name:gsym.to_local() for name,gsym in gsymtab.items() if not gsym.obj.is_stub_library}
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
     out_data = [v for v in gdata.values()]
 
     write_stub_library(args.stub_output, (out_segments, out_symbols, out_relocations, out_data, stub_library_dirs + stub_library_files), args.stub_format)
@@ -376,7 +375,6 @@ def link_dynamic_shared_library(args):
     lib_symtab = symbol.collect_symbols(library_dirs, library_files)
     stublib_symtab = symbol.collect_symbols(stub_library_dirs, stub_library_files, is_stub_library=True)
     dynlib_symtab = symbol.collect_dynamic_symbols(dynamic_library_files)
-    print(f"Dynamic library symbols: {dynlib_symtab}", file=sys.stderr)
     if lib_symtab.keys() & stublib_symtab.keys():
         print(f"Error: Symbol name conflict between libraries and stub libraries: {lib_symtab.keys() & stublib_symtab.keys()}", file=sys.stderr)
         sys.exit(1)
@@ -401,10 +399,13 @@ def link_dynamic_shared_library(args):
 
     # For dynamic shared library, we want to export non-absolute symbols
     out_symbols = {}
-    for gsym in out_gsymtab.values():
-        seg_number, gseg = next(((i+1, seg) for i, seg in enumerate(out_segments) if seg.name == gsym.segment_name), (None, None))
-        offset = gsym.value - gseg.start # Offset within the segment
-        out_symbols[gsym.name] = Symbol(name=gsym.name, value=offset, seg_number=seg_number, sym_type='D')
+    for i, gsym in enumerate(out_gsymtab.values()):
+        if gsym.obj.is_dynamic:
+            out_symbols[gsym.name] = Symbol(name=gsym.name, value=0, seg_number=0, sym_type='U', number=i+1)
+        else:
+            seg_number, gseg = next(((i+1, seg) for i, seg in enumerate(out_segments) if seg.name == gsym.segment_name), (None, None))
+            offset = gsym.value - gseg.start # Offset within the segment
+            out_symbols[gsym.name] = Symbol(name=gsym.name, value=offset, seg_number=seg_number, sym_type='D', number=i+1)
 
     # Add _SHARED_LIBRARIES symbol pointing to the start of .lib segment if it exists
     lib_seg = next((seg for seg in out_segments if seg.name == '.lib'), None)
@@ -412,7 +413,7 @@ def link_dynamic_shared_library(args):
         out_symbols['_SHARED_LIBRARIES'] = Symbol.absolute(name='_SHARED_LIBRARIES', value=lib_seg.start)
 
     # Relocate and generate output data
-    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments)
+    out_relocations = relocation.relocate(objs, gsymtab, gdata, args.byteorder, out_segments, out_symbols)
     out_data = [v for v in gdata.values()]
 
 
