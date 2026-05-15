@@ -20,7 +20,7 @@ def allocate(objs, gsymtab, base_addr, output_type):
     text_segments = {'.text': None}
     data_segments = {'.data': None}
     bss_segments = {'.bss': None}
-    objs = [o for o in objs if not o.is_stub_library and not o.is_dynamic]
+    objs = [o for o in objs if not o.is_stub_library and not o.is_dynamic_shared_lib]
     for o in objs:
         for lseg in o.segments:
             if lseg.code_letter not in VALID_SEGMENT_TYPES:
@@ -89,7 +89,7 @@ def allocate(objs, gsymtab, base_addr, output_type):
             if rel.rel_type == 'GP4':
                 sym_name = list(o.symbols.keys())[rel.ref - 1]
                 gsym = gsymtab[sym_name]
-                if gsym.is_defined and not gsym.obj.is_dynamic:
+                if gsym.is_defined and not gsym.obj.is_dynamic_shared_lib:
                     print(f"Warning: GOT entry for defined symbol '{gsym.name}' is not needed, but will be allocated anyway", file=sys.stderr)
                 if gsym.name not in got:
                     gsym.got_offset = len(got) * WORD_ALIGNMENT

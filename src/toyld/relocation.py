@@ -94,9 +94,9 @@ def relocate(objs, gsymtab, gdata, byteorder, out_segments, out_symbols):
     got_segment_index = next((i + 1 for i, s in enumerate(out_segments) if s.name == '.got'), None)
     got_gseg = out_segments[got_segment_index - 1] if got_segment_index is not None else None
     # We need to create ER4 relocations for the output for local symbols stored in the GOT
-    out_relocations = [Relocation(s.got_offset, got_segment_index, 0, 'ER4', [])  for s in gsymtab.values() if s.got_offset is not None and not s.obj.is_dynamic]
+    out_relocations = [Relocation(s.got_offset, got_segment_index, 0, 'ER4', [])  for s in gsymtab.values() if s.got_offset is not None and not s.obj.is_dynamic_shared_lib]
     # We need to create AS4 relocations for the output for dynamic symbols stored in the GOT, because we cannot resolve their addresses at link time
-    out_relocations += [Relocation(s.got_offset, got_segment_index, out_symbols[s.name].number, 'AS4', []) for s in gsymtab.values() if s.got_offset is not None and s.obj.is_dynamic]
+    out_relocations += [Relocation(s.got_offset, got_segment_index, out_symbols[s.name].number, 'AS4', []) for s in gsymtab.values() if s.got_offset is not None and s.obj.is_dynamic_shared_lib]
     for o in objs:
         for rel in o.relocations:
             tgt_lseg = o.segments[rel.seg_number - 1]
@@ -115,7 +115,7 @@ def relocate(objs, gsymtab, gdata, byteorder, out_segments, out_symbols):
                 ref_sym = gsymtab[sym_name]
             elif rel.rel_type in ('A4', 'R4', 'GA4', 'GR4'):
                 ref_lseg = o.segments[rel.ref - 1]
-            if ref_sym and ref_sym.obj.is_dynamic and rel.rel_type != 'GP4':
+            if ref_sym and ref_sym.obj.is_dynamic_shared_lib and rel.rel_type != 'GP4':
                 seg_number = next((i + 1 for i, s in enumerate(out_segments) if s.name == tgt_lseg.name), None)
                 if 'W' not in tgt_lseg.code_letter:
                     print(f"Warning: Found non-GP4 relocation ('{rel.rel_type}') to symbol '{sym_name}', and the target segment ('{tgt_lseg.name}') is not writable ('{tgt_lseg.code_letter}'). It may not be supported by the dynamic linker.", file=sys.stderr)

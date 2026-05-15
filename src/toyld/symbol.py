@@ -210,7 +210,7 @@ def resolve_values(objs, gsymtab, out_segments):
     for gsym in (s for s in gsymtab.values() if s.is_defined):
         local_sym = gsym.obj.symbols[gsym.name]
         # If the symbol is defined in a dynamic shared library, we cannot resolve its value at link time, so we will leave it as zero
-        if gsym.obj.is_dynamic:
+        if gsym.obj.is_dynamic_shared_lib:
             continue
         seg = gsym.obj.segments[local_sym.seg_number - 1]
         gsym.value = seg.assigned_address + local_sym.value

@@ -1,11 +1,17 @@
 import io
 import sys
+from enum import Enum
 
 DEBUG = False
 dprint = lambda *args, **kwargs: print(*args, **kwargs, file=sys.stderr) if DEBUG else None
 
+class ObjectType(Enum):
+    OBJECT = 0
+    STUB_LIBRARY = 1
+    DYNAMIC_SHARED_LIB = 2
+
 class Object:
-    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None, is_stub_library=False, is_dynamic=False, deps=None):
+    def __init__(self, filename, num_segments, num_symbols, num_relocations, segments=None, symbols=None, relocations=None, data=None, is_stub_library=False, is_dynamic_shared_lib=False, deps=None):
         self.filename = filename
         self.num_segments = num_segments
         self.num_symbols = num_symbols
@@ -14,15 +20,29 @@ class Object:
         self.symbols = symbols
         self.relocations = relocations
         self.data = data
-        self.is_stub_library = is_stub_library
         self.mod = None  # this will be used to store the Module object that this Object belongs to when we parse the input files into Modules and Objects
-        self.is_dynamic = is_dynamic
         self.deps = deps if deps else [] # This will be used to store the dependencies of this object if it's a dynamic shared library (LINKLIB) or an executable (LINK) with dynamic shared library dependencies.
+        if is_stub_library and is_dynamic_shared_lib:
+            print(f"Object '{filename}' cannot be both a stub library and a dynamic shared library", file=sys.stderr)
+            sys.exit(1)
+        self.type = ObjectType.OBJECT
+        if is_stub_library:
+            self.type = ObjectType.STUB_LIBRARY
+        if is_dynamic_shared_lib:
+            self.type = ObjectType.DYNAMIC_SHARED_LIB
+
+    @property
+    def is_stub_library(self):
+        return self.type == ObjectType.STUB_LIBRARY
+
+    @property
+    def is_dynamic_shared_lib(self):
+        return self.type == ObjectType.DYNAMIC_SHARED_LIB
 
     def serialize(self, skip_symbols=False, skip_relocations=False, skip_data=False):
         contents = b''
         # Magic number
-        if self.is_dynamic:
+        if self.is_dynamic_shared_lib:
             contents = b' '.join([b'LINKLIB'] + self.deps) + b'\n'
         else:
             contents = b' '.join([b'LINK'] + self.deps) + b'\n'

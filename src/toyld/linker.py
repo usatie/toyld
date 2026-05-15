@@ -400,7 +400,7 @@ def link_dynamic_shared_library(args):
     # For dynamic shared library, we want to export non-absolute symbols
     out_symbols = {}
     for i, gsym in enumerate(out_gsymtab.values()):
-        if gsym.obj.is_dynamic:
+        if gsym.obj.is_dynamic_shared_lib:
             out_symbols[gsym.name] = Symbol(name=gsym.name, value=0, seg_number=0, sym_type='U', number=i+1)
         else:
             seg_number, gseg = next(((i+1, seg) for i, seg in enumerate(out_segments) if seg.name == gsym.segment_name), (None, None))
@@ -427,7 +427,7 @@ def link_dynamic_shared_library(args):
         symbols=out_symbols,
         relocations=out_relocations,
         data=out_data,
-        is_dynamic=True,
+        is_dynamic_shared_lib=True,
         deps = [os.path.basename(f).encode() for f in dynamic_library_files],
     )
     Path(args.output).write_bytes(obj.serialize())
