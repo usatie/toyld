@@ -103,8 +103,9 @@ def relocate(objs, gsymtab, gdata, byteorder, out_segments, out_symbols):
             tgt_lseg = o.segments[rel.seg_number - 1]
             seg_data = gdata[tgt_lseg.name]
             offset = tgt_lseg.assigned_offset + rel.loc
-            if offset + 4 > len(seg_data):
-                print(f"Relocation out of bounds: segment '{tgt_lseg.name}', offset {offset}, seg_data length {len(seg_data)}", file=sys.stderr)
+            reloc_size = 2 if rel.rel_type in ('U2', 'L2') else 4
+            if offset + reloc_size > len(seg_data):
+                print(f"Relocation out of bounds: segment '{tgt_lseg.name}', offset 0x{offset:x}, seg_data length 0x{len(seg_data):x}", file=sys.stderr)
                 sys.exit(1)
             handler = _HANDLERS.get(rel.rel_type)
             if handler is None:
