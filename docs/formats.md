@@ -110,7 +110,7 @@ d 38 foo helper
 
 ## Symbol Resolution
 
-- **Defined symbols** (`D`): value = segment's assigned address + symbol's offset within the segment.
+- **Defined symbols** (`D`): for an absolute symbol (`seg = 0`), `value` is the final address (segment's assigned address + symbol's offset within the segment). For a segment-relative symbol (`seg ≥ 1`, used only by dynamic shared libraries), `value` is just the offset within the segment — see `symbol-segments.md`.
 - **Common blocks** (`U` with nonzero value): the largest declaration across all input files is kept; the symbol is assigned an address at the end of `.bss`.
 - **Undefined symbols** (`U` with zero value): must be satisfied by a definition in another input file; an error is raised if unresolved.
 - Multiply-defined symbols are an error.

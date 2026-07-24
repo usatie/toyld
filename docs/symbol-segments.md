@@ -3,7 +3,7 @@
 The object file format encodes a defined symbol as either:
 
 - `<name> <value> 0 D` — **absolute**: `value` is a final address; nothing slides at load time.
-- `<name> <value> N D` (N ≥ 1) — **segment-relative**: `value` is the link-time address inside segment `N`; at load time the loader slides it by `(runtime_base − link_time_base)` of that segment.
+- `<name> <value> N D` (N ≥ 1) — **segment-relative**: `value` is the symbol's **offset within segment `N`**. At load time the loader resolves the symbol to `runtime_base_of_segment_N + value`; the link-time base of segment `N` (in the segment table) is irrelevant to consumers.
 
 Both forms appear in this project's outputs. The choice depends on **whether the symbol table is consumed by a dynamic linker that needs to relocate the symbol at load time.**
 
@@ -45,10 +45,12 @@ add 5000 0 D    ← seg 0; absolute address is final
 **Dynamic shared library** (testcase 34, 35). The dynamic linker of any consumer must slide these exports.
 
 ```
-add 1000 1 D    ← seg 1: "in .text, link-time address 0x1000"
-sub 1004 1 D
-mul 1008 1 D
+add 0 1 D    ← seg 1: "offset 0 within .text"
+sub 4 1 D    ← seg 1: "offset 4 within .text"
+mul 8 1 D    ← seg 1: "offset 8 within .text"
 ```
+
+The segment table records each segment's link-time base (e.g. `.text 1000 c RP`), but the symbol's `value` is independent of that base — it is just the byte offset from the start of the segment. A consumer's loader places segment `N` at some runtime address and adds `value` to obtain the final symbol address; the link-time base in the producing `.dso` plays no role.
 
 **Dynamic-linked executable / PIE** (testcase 36, 37). The binary itself uses dynamic libraries, but exports nothing dynamically.
 
